@@ -365,12 +365,12 @@ const SPECS={
   dog:{name:"おかわり",icon:"🍖",desc:"持っているアイテム全部を、使い切ったらもう1回おかわりできる"},
   cat:{name:"猫抜け",icon:"👻",dur:10000,desc:"10秒間、障害物をすり抜け＋ポップマインも効かない"},
   rabbit:{name:"大家族",icon:"🐰",dur:60000,desc:"自分そっくりの分身を3体、1分間出す（風船の数も同じ）"},
-  penguin:{name:"アイスエイジ",icon:"❄️",dur:40000,desc:"40秒間、まわりを氷づけにする全方位アタック＋飛んでくる攻撃も凍らせる"},
-  bear:{name:"報復の執着",icon:"🐻",dur:40000,desc:"40秒以内に攻撃されたら、1分間ストーカーミサイル撃ち放題＋速度1.1倍（周りにはバレない）"},
-  squirrel:{name:"電光石火",icon:"⚡",dur:10000,desc:"10秒間、スピード2.5倍"},
+  penguin:{name:"アイスエイジ",icon:"❄️",dur:40000,desc:"40秒間、まわりを氷づけにする全方位アタック（近づいた相手は何回でも割れる）＋飛んでくる攻撃も凍らせる"},
+  bear:{name:"報復の執着",icon:"🐻",dur:120000,desc:"2分以内に攻撃されたら、40秒間ストーカーミサイル撃ち放題＋速度1.1倍（周りにはバレない）"},
+  squirrel:{name:"電光石火",icon:"⚡",dur:40000,desc:"40秒間、スピード2.5倍"},
   lion:{name:"王の徴収",icon:"👑",desc:"スターを持っている相手のアイテムを全部うばう（スターを持つ相手がいる時だけ）"},
-  kangaroo:{name:"袋隠し",icon:"👜",dur:30000,desc:"30秒間、アイテムボックスが自分にしか見えず自分しか取れない"}};
-const ICE_R=120,CLONE_MS=60000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=60000,RAGE_CD=550,FREEZE_MS=1500;
+  kangaroo:{name:"袋隠し",icon:"👜",dur:40000,desc:"40秒間、アイテムボックスが自分にしか見えず自分しか取れない"}};
+const ICE_R=120,CLONE_MS=60000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500;
 let clones=[],remoteClones=new Map();
 const on_=(E,f,flag,t)=>E.local?t<(E[f]||0):!!E[flag];
 const ghostOn=(E,t)=>on_(E,"ghostUntil","ghostFlag",t),iceOn=(E,t)=>on_(E,"iceUntil","iceFlag",t),pouchOn=(E,t)=>on_(E,"pouchUntil","pouchFlag",t);
@@ -393,13 +393,13 @@ function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e
     case"cat":e.ghostUntil=t+S.dur;if(mine)flash("👻 猫抜け！10秒すり抜け",1500);break;
     case"rabbit":spawnClones(e,t);if(mine)flash("🐰 大家族！分身が3体出た！",1500);break;
     case"penguin":e.iceUntil=t+S.dur;e.iceStart=t;e.iceSeq=(e.iceSeq||0)+1;if(mine)flash("❄️ アイスエイジ！",1300);break;
-    case"bear":e.bearArm=t+S.dur;e.bearPrevB=e.b;if(mine)flash("🐻 報復の執着…（40秒以内に攻撃されたら発動）",1800);break;
+    case"bear":e.bearArm=t+S.dur;e.bearPrevB=e.b;if(mine)flash("🐻 報復の執着…（2分以内に攻撃されたら発動）",1800);break;
     case"squirrel":e.dashUntil=t+S.dur;if(mine)flash("⚡ 電光石火！",1300);break;
     case"lion":{const v=starHolders(e)[0];if(!v)return false;let inv;
       if(v.local){inv=[v.item,...(v.stock||[])].filter(Boolean).map(x=>({k:x.k,n:x.n}));v.item=null;v.stock=[];if(v===me)flash("👑 "+e.name+" に全アイテムを徴収された！",2200);}
       else{inv=(v.invList||[]).map(q=>({k:q[0],n:q[1]}));e.ltN=(e.ltN||0)+1;e.ltTarget=v.id;}
       e.item=inv[0]||null;e.stock=inv.slice(1,3);if(mine)flash("👑 王の徴収！ "+v.name+" のアイテムを全部いただいた！",2000);break;}
-    case"kangaroo":e.pouchUntil=t+S.dur;if(mine)flash("👜 袋隠し！30秒間アイテムはあなただけのもの",1800);break;}
+    case"kangaroo":e.pouchUntil=t+S.dur;if(mine)flash("👜 袋隠し！40秒間アイテムはあなただけのもの",1800);break;}
   e.spUsed=true;e.spDoneAt=t+Math.min(S.dur||0,10000)+1500;return true;}
 function spawnClones(o,t){for(let i=0;i<3;i++){const c=makeEnt(o.id+"#c"+i,o.name,o.color,true,true);c.skin=o.skin;c.clone=true;c.owner=o.id;c.cloneUntil=t+CLONE_MS;
   const a=o.a+(i-1)*2.1+Math.PI;let cx=clamp(o.x+Math.cos(a)*90,R,W-R),cy=clamp(o.y+Math.sin(a)*90,R,H-R);if(solidAt(cx,cy)){cx=o.x;cy=o.y;}Object.assign(c,{x:cx,y:cy,a:o.a,v:o.v,b:o.b,prevB:o.b,stock:[],starStock:[],starCd:[0,0],h:[],pj:[],r:round});
@@ -407,12 +407,12 @@ function spawnClones(o,t){for(let i=0;i<3;i++){const c=makeEnt(o.id+"#c"+i,o.nam
 function stepClones(t,dt,go){for(const c of clones){const [s,d]=go?botThink(c,t,dt):[0,false];drive(c,s,d,dt,t,go);}
   clones=clones.filter(c=>{if(c.b<=0&&!c.deadAt)c.deadAt=t+700;const keep=t<c.cloneUntil&&!(c.deadAt&&t>c.deadAt);if(!keep&&c.b>0)popFx(c.x,c.y,"#ffffff",30);return keep;});}
 function resolveIce(L,t){if(L.b<=0||t<(L.star||0))return;
-  for(const E of allEnts()){if(E===L||E.clone||!iceOn(E,t))continue;if(L.clone&&L.owner===E.id)continue;const seq=800000+(E.iceSeq||0);
-    if(L.h.some(h=>h[0]===E.id&&h[1]===seq)||t<=L.inv||Math.hypot(E.x-L.x,E.y-L.y)>=ICE_R)continue;
+  for(const E of allEnts()){if(E===L||E.clone||!iceOn(E,t))continue;if(L.clone&&L.owner===E.id)continue;if(t<=L.inv||t<(L.frozenUntil||0)||Math.hypot(E.x-L.x,E.y-L.y)>=ICE_R)continue;
+    L.iceN=(L.iceN||0)+1;const seq=600000+L.iceN;
     if(L.shield){L.shield=0;L.h.push([E.id,seq,0]);if(L.h.length>8)L.h.shift();L.inv=t+800;barriFx(L.x,L.y);if(L===me)flash("⚡ BARI！バリアで防いだ！");continue;}
     L.h.push([E.id,seq,L.clone?0:1]);if(L.h.length>8)L.h.shift();L.b--;L.inv=t+1600;L.frozenUntil=t+FREEZE_MS;L.v=0;L.drifting=false;L.boost=0;popFx(L.x,L.y,"#bfefff",26);
     if(L===me){flash(L.b>0?"❄️ "+E.name+" のアイスエイジ！カチコチ…":"❄️ "+E.name+" のアイスエイジで脱落…",2000);if(navigator.vibrate)try{navigator.vibrate(80)}catch(e){}}}}
-function bearWatch(e,t){if(e.bearArm){if(t>=e.bearArm)e.bearArm=0;else if(e.b<(e.bearPrevB??e.b)&&e.b>0){e.bearArm=0;e.bearRage=t+RAGE_MS;e.bearCd=0;if(e===me)flash("🐻 報復モード！1分間ミサイル撃ち放題！",2000);}}e.bearPrevB=e.b;}
+function bearWatch(e,t){if(e.bearArm){if(t>=e.bearArm)e.bearArm=0;else if(e.b<(e.bearPrevB??e.b)&&e.b>0){e.bearArm=0;e.bearRage=t+RAGE_MS;e.bearCd=0;if(e===me)flash("🐻 報復モード！40秒間ミサイル撃ち放題！",2000);}}e.bearPrevB=e.b;}
 function grantRefill(e,it){if(it&&it.ok&&ITEMS[it.k]){(e.stock=e.stock||[]).push({k:it.k,n:ITEMS[it.k].n||1});if(e===me)flash("🍖 おかわり！"+ITEMS[it.k].name,1200);}}
 const STAR_MS=7500,STAR_SPEED=1.3,STAR_FIRE_CD=380;
 function itemCount(e,t){if(e.star&&(t===undefined?now():t)<e.star)return 3;return(e.item?1:0)+((e.stock&&e.stock.length)||0);}
@@ -561,6 +561,7 @@ function botThink(b,t,dt){
     else if(k==='star'){if((b.stock||[]).length>=2||Math.random()<dt*.12){useItem(b,t,false);b.fireCd=1;}}
     else{if(Math.random()<dt*.8){useItem(b,t,false);b.fireCd=1.5;}}}
   if(tgt&&t<(b.mag||0)){gx=tgt.x;gy=tgt.y;}
+  if(tgt&&!b.clone&&iceOn(b,t)){gx=tgt.x;gy=tgt.y;}
   if(tgt&&t<(b.star||0)){gx=tgt.x;gy=tgt.y;if(b.starStock&&b.starStock.length&&td<620){const i=Math.floor(Math.random()*b.starStock.length),k=b.starStock[i].k;
     if(ITEMS[k].trap)useStarSlot(b,i,t,true);else if(ITEMS[k].use){if(Math.random()<dt*1.5)useStarSlot(b,i,t,false);}else{const want=Math.atan2(tgt.y-b.y,tgt.x-b.x);if(Math.abs(angDiff(want,b.a))<.3||k==="homing")useStarSlot(b,i,t,false);}}}
   if(!b.clone&&tgt){
