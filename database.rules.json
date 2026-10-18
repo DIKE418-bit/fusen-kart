@@ -1,0 +1,17 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$room": {
+        "peers": {
+          ".read": "auth != null && $room.matches(/^fk-[0-9a-f]{8}$/)",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && $room.matches(/^fk-[0-9a-f]{8}$/)",
+            ".validate": "!newData.exists() || (newData.hasChildren(['n','r','st']) && newData.child('n').isString() && newData.child('n').val().length <= 20)"
+          }
+        }
+      }
+    }
+  }
+}
