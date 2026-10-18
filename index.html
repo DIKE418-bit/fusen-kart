@@ -369,7 +369,7 @@ function allEnts(){const a=[me,...bots,...clones];if(mode==="online"){for(const 
 function roundEnts(){return allEnts().filter(e=>e.local||e.r===round);}
 function scoreOf(id){let s=0;for(const e of allEnts()){if(e.id===id)continue;for(const h of e.h)if(h[0]===id&&h[2]===1)s++;}return s;}
 function spawn(e,i){const s=SPAWNS[i%SPAWNS.length];e.x=e.rx=s[0];e.y=e.ry=s[1];e.a=e.ra=Math.atan2(H/2-s[1],W/2-s[0]);
-  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,heartN:0,growlUntil:0,gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
+  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,heartN:0,growlUntil:0,kingUntil:0,kingCd:0,sqCd:{},gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
 
 // ---------- physics ----------
 const MAX_STOCK=3;
@@ -379,11 +379,11 @@ const SPECS={
   cat:{name:"猫抜け",icon:"👻",dur:40000,desc:"40秒間、障害物をすり抜ける"},
   rabbit:{name:"大家族",icon:"🐰",dur:40000,desc:"自分そっくりの分身を3体、40秒間出す（風船の数も同じ）"},
   penguin:{name:"アイスエイジ",icon:"❄️",dur:40000,desc:"40秒間、まわりを氷づけにする全方位アタック（近づいた相手は何回でも割れる）＋飛んでくる攻撃も凍らせる"},
-  bear:{name:"報復の執着",icon:"🐻",dur:120000,desc:"2分以内に攻撃されたら、40秒間ストーカーミサイル撃ち放題＋速度1.1倍（周りにはバレない）"},
-  squirrel:{name:"電光石火",icon:"⚡",dur:40000,desc:"40秒間、スピード2.5倍"},
-  lion:{name:"王の徴収",icon:"👑",desc:"スターを持っている相手のアイテムを全部うばう（スターを持つ相手がいる時だけ）"},
+  bear:{name:"報復の執着",icon:"🐻",dur:120000,desc:"2分以内に攻撃されたら、40秒間ストーカーミサイル撃ち放題＋速度1.5倍（周りにはバレない）"},
+  squirrel:{name:"電光石火",icon:"⚡",dur:40000,desc:"40秒間、スピード2.5倍＋ぶつかった相手から最後に取ったアイテムを1個ずつ盗む"},
+  lion:{name:"王の徴収",icon:"👑",dur:40000,desc:"40秒間、ボタンを押すたびに空いているストックの数だけ、だれかのアイテムをランダムに徴収"},
   kangaroo:{name:"袋隠し",icon:"👜",dur:40000,desc:"40秒間、アイテムボックスが自分にしか見えず自分しか取れない"}};
-const ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=3600,KNOCK_MS=1400;
+const ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.5,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=3600,KNOCK_MS=1400;
 let clones=[],remoteClones=new Map(),remoteBots=new Map();
 // teams: teamOn 0=none 1=mixed red/blue 2=humans vs CPU; teamMap id->0/1 (decided by whoever started the round)
 const TEAM_COL=["#ff4f7b","#3fa9ff"],TEAM_NAME=["🔴 赤チーム","🔵 青チーム"];
@@ -398,19 +398,36 @@ const growlOn=(E,t)=>on_(E,"growlUntil","growlFlag",t);
 // dog "威嚇": everyone except the dog (its team and its own clones) drives at half speed
 function growled(e,t){const me_=e.clone?e.owner:e.id;for(const o of allEnts()){if(o.clone||o.skin!=="dog"||o.id===me_||ally(o,e))continue;if(growlOn(o,t))return true;}return false;}
 const ghostOn=(E,t)=>on_(E,"ghostUntil","ghostFlag",t),iceOn=(E,t)=>on_(E,"iceUntil","iceFlag",t),pouchOn=(E,t)=>on_(E,"pouchUntil","pouchFlag",t);
+// ---------- stealing (squirrel bump / lion tax) ----------
+// victim's newest item: star slots first, then stock, then the main slot
+function takeLast(v){if(v.starStock&&v.starStock.length)return v.starStock.pop();if(v.stock&&v.stock.length)return v.stock.pop();if(v.item){const it=v.item;v.item=null;return it;}return null;}
+function invCount(o){return o.local?itemCount(o):(o.invList||[]).length;}
+function freeSlots(e,t){return Math.max(0,MAX_STOCK-itemCount(e,t));}
+function giveItem(e,it,t){if(!it||!ITEMS[it.k])return false;it={k:it.k,n:it.n||ITEMS[it.k].n||1};if(e.star&&t<e.star){if(it.k==="star")it={k:"spike",n:ITEMS.spike.n};(e.starStock=e.starStock||[]).push(it);}else if(e.item)(e.stock=e.stock||[]).push(it);else e.item=it;return true;}
+// thief e takes victim v's newest item; remote victims are told through the thief's "sl" counters
+function stealLast(e,v,t,how){let it;if(v.local){it=takeLast(v);if(it&&v===me)flash(how==="lion"?"👑 "+e.name+" にアイテムを徴収された！":"🐿️ "+e.name+" にアイテムを盗まれた！",1600);}
+  else{const q=(v.invList||[]).pop();if(q){it={k:q[0],n:q[1]};e.slN=e.slN||{};e.slN[v.id]=(e.slN[v.id]||0)+1;}}
+  if(!it)return null;giveItem(e,it,t);return it;}
+function resolveSquirrelSteal(e,t){if(e.clone||e.b<=0||!(t<(e.dashUntil||0))||e.skin!=="squirrel")return;e.sqCd=e.sqCd||{};
+  for(const o of allEnts()){if(o===e||o.clone||o.b<=0||ally(e,o)||freeSlots(e,t)<=0)continue;if(Math.hypot(o.x-e.x,o.y-e.y)>R*2+8||t<(e.sqCd[o.id]||0)||invCount(o)<=0)continue;
+    e.sqCd[o.id]=t+1000;const it=stealLast(e,o,t,"sq");if(it&&e===me)flash("🐿️ "+o.name+" から "+ITEMS[it.k].name+" を盗んだ！",1400);}}
+function kingTax(e,t){let n=freeSlots(e,t),got=[];while(n>0){const vs=allEnts().filter(o=>o!==e&&!o.clone&&!ally(e,o)&&invCount(o)>0);if(!vs.length)break;
+    const v=vs[Math.floor(Math.random()*vs.length)],it=stealLast(e,v,t,"lion");if(!it)break;got.push(ITEMS[it.k].icon);n--;}
+  if(e===me)flash(got.length?"👑 王の徴収！ "+got.join(" ")+" をいただいた！":"👑 徴収できるアイテムがない…",1400);return got.length>0;}
 function hasStar(o){if(o.local)return(o.item&&o.item.k==="star")||(o.stock||[]).some(x=>x.k==="star");return(o.invList||[]).some(q=>q[0]==="star");}
 function starHolders(e){return allEnts().filter(o=>o!==e&&!o.clone&&o.b>0&&!ally(e,o)&&hasStar(o)).sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y));}
 function pouchBlocked(e,t){return allEnts().some(o=>o!==e&&!o.clone&&pouchOn(o,t));}
-function specActiveUntil(e,t){switch(e.skin){case"dog":return e.growlUntil||0;case"cat":return e.ghostUntil||0;case"penguin":return e.iceUntil||0;case"bear":return e.bearRage>t?e.bearRage:(e.bearArm||0);
+function specActiveUntil(e,t){switch(e.skin){case"lion":return e.kingUntil||0;case"dog":return e.growlUntil||0;case"cat":return e.ghostUntil||0;case"penguin":return e.iceUntil||0;case"bear":return e.bearRage>t?e.bearRage:(e.bearArm||0);
   case"squirrel":return e.dashUntil||0;case"kangaroo":return e.pouchUntil||0;case"rabbit":{let m=0;for(const c of clones)if(c.owner===e.id&&c.b>0)m=Math.max(m,c.cloneUntil);return m;}}return 0;}
 function canSpec(e,t){const S=SPECS[e.skin];if(!S||e.clone||e.b<=0||phase!=="play")return false;
   if(e.bearRage>t)return t>=(e.bearCd||0);
+  if(e.skin==="lion"&&t<(e.kingUntil||0))return t>=(e.kingCd||0)&&freeSlots(e,t)>0;
   if(mode==="test"&&e.spUsed&&t>(e.spDoneAt||0)&&specActiveUntil(e,t)<t){e.spUsed=false;e.bearArm=0;}
   if(e.spUsed)return false;
-  if(e.skin==="lion")return starHolders(e).length>0;
   return true;}
 function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e===me;
   if(e.bearRage>t){e.bearCd=t+RAGE_CD;return launch(e,"homing",t,false);}
+  if(e.skin==="lion"&&t<(e.kingUntil||0)){e.kingCd=t+350;kingTax(e,t);return true;}
   switch(e.skin){
     case"dog":e.growlUntil=t+S.dur;if(mine)flash("💢 威嚇！40秒間みんなのスピード半分！",1600);else if(me&&!ally(e,me))flash("💢 "+e.name+" の威嚇！スピードが半分に…",1800);break;
     case"cat":e.ghostUntil=t+S.dur;if(mine)flash("👻 猫抜け！40秒すり抜け",1500);break;
@@ -418,10 +435,7 @@ function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e
     case"penguin":e.iceUntil=t+S.dur;e.iceStart=t;e.iceSeq=(e.iceSeq||0)+1;if(mine)flash("❄️ アイスエイジ！",1300);break;
     case"bear":e.bearArm=t+S.dur;e.bearPrevB=e.b;if(mine)flash("🐻 報復の執着…（2分以内に攻撃されたら発動）",1800);break;
     case"squirrel":e.dashUntil=t+S.dur;if(mine)flash("⚡ 電光石火！",1300);break;
-    case"lion":{const v=starHolders(e)[0];if(!v)return false;let inv;
-      if(v.local){inv=[v.item,...(v.stock||[])].filter(Boolean).map(x=>({k:x.k,n:x.n}));v.item=null;v.stock=[];if(v===me)flash("👑 "+e.name+" に全アイテムを徴収された！",2200);}
-      else{inv=(v.invList||[]).map(q=>({k:q[0],n:q[1]}));e.ltN=(e.ltN||0)+1;e.ltTarget=v.id;}
-      e.item=inv[0]||null;e.stock=inv.slice(1,3);if(mine)flash("👑 王の徴収！ "+v.name+" のアイテムを全部いただいた！",2000);break;}
+    case"lion":e.kingUntil=t+S.dur;e.kingCd=t+350;if(mine)flash("👑 王の徴収！40秒間、ボタンを押すたびにアイテムを徴収！",1500);kingTax(e,t);break;
     case"kangaroo":e.pouchUntil=t+S.dur;if(mine)flash("👜 袋隠し！40秒間アイテムはあなただけのもの",1800);break;}
   e.spUsed=true;e.spDoneAt=t+Math.min(S.dur||0,10000)+1500;return true;}
 function spawnClones(o,t){for(let i=0;i<3;i++){const c=makeEnt(o.id+"#c"+i,o.name,o.color,true,true);c.skin=o.skin;c.clone=true;c.owner=o.id;c.cloneUntil=t+CLONE_MS;
@@ -611,8 +625,9 @@ function botThink(b,t,dt){
     if(ITEMS[k].trap)useStarSlot(b,i,t,true);else if(ITEMS[k].use){if(Math.random()<dt*1.5)useStarSlot(b,i,t,false);}else{const want=Math.atan2(tgt.y-b.y,tgt.x-b.x);if(Math.abs(angDiff(want,b.a))<.3||k==="homing")useStarSlot(b,i,t,false);}}}
   if(!b.clone&&tgt){
     if(b.bearRage>t){if(td<750&&t>=(b.bearCd||0))useSpec(b,t);}
+    else if(b.skin==="lion"&&t<(b.kingUntil||0)){if(Math.random()<dt*2)useSpec(b,t);}
     else if(!b.spUsed&&t-phaseAt>6000&&Math.random()<dt*.5*L.spec){const k=b.skin;let go=false;
-      if(k==="dog")go=td<700||Math.random()<.05;else if(k==="lion")go=starHolders(b).length>0;else if(k==="penguin")go=td<ICE_R*.9;
+      if(k==="dog")go=td<700||Math.random()<.05;else if(k==="lion")go=allEnts().some(o=>o!==b&&!o.clone&&!ally(b,o)&&invCount(o)>0);else if(k==="penguin")go=td<ICE_R*.9;
       else if(k==="squirrel")go=td<260||Math.random()<.05;else if(k==="cat")go=Math.random()<.08;else go=Math.random()<.06;
       if(go)useSpec(b,t);}}
   const want=Math.atan2(dy,dx)+Math.sin(t/800+b.seed)*L.wob;
@@ -725,8 +740,11 @@ function applyState(e,pr,t){
   e.h=parseH(pr.h);
   e.heldK=Array.isArray(pr.it)&&ITEMS[pr.it[0]]?pr.it[0]:null;e.heldN=Array.isArray(pr.it)?clamp(pr.it[1]|0,0,3):0;e.starFlag=!!pr.sr;
   {const mr=pr.mr|0;if(e.prevMr!==undefined&&mr>e.prevMr&&phase==="play"){for(const o of [me,...bots]){if(!o||ally(e,o))continue;o.mirrorUntil=now()+MIRROR_MS;if(o===me){mirrorFx=now()+MIRROR_MS;flash("🪞 "+e.name+" のミラーマジック！ハンドルが左右逆に！",1800);}}}e.prevMr=mr;}
-  e.invList=Array.isArray(pr.inv)?pr.inv.slice(0,3).filter(q=>Array.isArray(q)&&ITEMS[q[0]]).map(q=>[q[0],clamp(q[1]|0,1,3)]):[];
+  e.invList=Array.isArray(pr.inv)?pr.inv.slice(0,4).filter(q=>Array.isArray(q)&&ITEMS[q[0]]).map(q=>[q[0],clamp(q[1]|0,1,3)]):[];
   {const g=!!pr.gr;if(g&&!e.growlFlag&&phase==="play"&&me&&!ally(e,me))flash("💢 "+e.name+" の威嚇！スピードが半分に…",1800);e.growlFlag=g;}
+  {const sl=Array.isArray(pr.sl)?pr.sl.filter(Array.isArray):[],first=!e.slSeen;e.slSeen=e.slSeen||{};
+    for(const q of sl){const id=String(q[0]),n=q[1]|0,prev=e.slSeen[id];e.slSeen[id]=n;if(first||prev===undefined&&phase!=="play")continue;
+      const v=[me,...bots].find(o=>o&&o.id===id);if(!v)continue;for(let k=prev||0;k<n;k++){const it=takeLast(v);if(it&&v===me)flash((e.skin==="lion"?"👑 "+e.name+" にアイテムを徴収された！":"🐿️ "+e.name+" にアイテムを盗まれた！"),1600);}}}
   e.ghostFlag=!!pr.gh;e.iceFlag=!!pr.ia;e.iceSeq=pr.is|0;e.pouchFlag=!!pr.kg;e.frozenFlag=!!pr.fz;
   {const lt=Array.isArray(pr.lt)?pr.lt:null,n=lt?lt[1]|0:(e.prevLt||0);if(lt&&n>(e.prevLt||0)&&phase==="play"){const v=[me,...bots].find(o=>o&&o.id===lt[0]);if(v){v.item=null;v.stock=[];v.starStock=[];if(v===me)flash("👑 "+e.name+" に全アイテムを徴収された！",2200);}}e.prevLt=n;}
   {const cl=Array.isArray(pr.cl)?pr.cl.slice(0,3):[];for(let i=0;i<3;i++){const id=e.id+"#c"+i,q=cl[i];let c=remoteClones.get(id);
@@ -763,7 +781,7 @@ function syncHostCfg(){if(mode!=="online"||!me||hostRound===round||phase==="lobb
   const h=[...remotes.values()].find(e=>e.hsR&&e.hsR===round);if(!h)return;
   const on=h.cf?h.cf[2]|0:0,mp=new Map((h.tmList||[]).map(q=>[String(q[0]),q[1]|0]));
   const changed=on!==teamOn||mp.size!==teamMap.size;teamOn=on;teamMap=mp;if(changed&&teamOn){applyTeamColors();const k=teamOf(me);if(k>=0)flash("あなたは "+TEAM_NAME[k]+"！",2200);}}
-function entState(e,t){return{inv:[e.item,...(e.stock||[])].filter(Boolean).map(x=>[x.k,x.n]),gh:t<(e.ghostUntil||0)?1:0,gr:t<(e.growlUntil||0)?1:0,ia:t<(e.iceUntil||0)?1:0,is:e.iceSeq||0,kg:t<(e.pouchUntil||0)?1:0,fz:t<(e.frozenUntil||0)?1:0,
+function entState(e,t){return{inv:[e.item,...(e.stock||[]),...((e.star&&t<e.star)?(e.starStock||[]):[])].filter(Boolean).map(x=>[x.k,x.n]),sl:e.slN?Object.entries(e.slN):0,gh:t<(e.ghostUntil||0)?1:0,gr:t<(e.growlUntil||0)?1:0,ia:t<(e.iceUntil||0)?1:0,is:e.iceSeq||0,kg:t<(e.pouchUntil||0)?1:0,fz:t<(e.frozenUntil||0)?1:0,
     lt:e.ltTarget?[e.ltTarget,e.ltN||0]:0,cl:clones.filter(c=>c.owner===e.id).map(c=>[Math.round(c.x),Math.round(c.y),Math.round(c.a*100)/100,c.b,c.h,c.cloneUntil>t?1:0]),
     n:e.name,c:e.color,sk:e.skin||"dog",it:e.item?[e.item.k,e.item.n]:0,sr:t<(e.star||0)?1:0,mr:e.mr||0,sh:e.shield?1:0,mg:t<(e.mag||0)?1:0,jp:t<(e.jump||0)?1:0,ik:e.ik||0,
     x:Math.round(e.x),y:Math.round(e.y),a:Math.round(e.a*100)/100,b:e.b,iv:t<e.inv,bo:t<e.boost||t<(e.dashUntil||0),
@@ -1553,6 +1571,7 @@ function frame(){
     stepClones(t,dt,go);
     for(const b of bots)if(t<b.boost)b.inkUntil=0;
     for(const e of [me,...bots])stepProj(e,dt,t);
+    if(go)for(const e of [me,...bots])resolveSquirrelSteal(e,t);
     if(go)for(const e of [me,...bots,...clones]){resolveHits(e,t);resolveIce(e,t);if(!e.clone)bearWatch(e,t);resolveRam(e,t);resolveMagnet(e,t);gainSteals(e);if(e.shield&&t>e.shieldUntil)e.shield=0;}
     for(const e of [...remotes.values(),...remoteBots.values()])for(const p of e.pj){p.x+=p.vx*dt;p.y+=p.vy*dt;}
     for(const e of allEnts()){if(e.b<e.prevB)popFx(e.rx,e.ry,e.color);e.prevB=e.b;}
@@ -1575,7 +1594,7 @@ function frame(){
     {const io=iceOn(e,t)&&e.b>0;o.ice.visible=io;if(io){const k=e.local?Math.min(1,(t-(e.iceStart||0))/180):1;o.ice.scale.setScalar(Math.max(.05,k));o.ice.rotation.y=t/700;}}
     o.cube.visible=(e.local?t<(e.frozenUntil||0):e.frozenFlag)&&e.b>0;
     const gho=ghostOn(e,t)&&e.b>0;o.ghost.visible=gho;
-    o.smark.visible=!!(me&&me.skin==="lion"&&e!==me&&!e.clone&&e.b>0&&hasStar(e));if(o.smark.visible)o.smark.position.y=118+Math.sin(t/200)*4;
+    o.smark.visible=!!(me&&me.skin==="lion"&&t<(me.kingUntil||0)&&e!==me&&!e.clone&&e.b>0&&!ally(me,e)&&invCount(e)>0);if(o.smark.visible)o.smark.position.y=118+Math.sin(t/200)*4;
     o.bubble.visible=!!e.shield&&e.b>0&&!(e.local&&e.shieldUntil-t<6000&&Math.floor(t/150)%2===0);if(o.bubble.visible){{const k=1+Math.sin(t/180)*.03;o.bubble.scale.set(k,k*1.55,k);}o.bubble.rotation.y=-o.root.rotation.y+t/2600;}
     o.mag.visible=(e.local?t<(e.mag||0):e.mgFlag)&&e.b>0;if(o.mag.visible)o.mag.rotation.y=t/300;
     {const hk=e.local?(e.item&&ITEMS[e.item.k]&&ITEMS[e.item.k].hold?e.item.k:null):e.heldK,hn=e.local?(e.item?Math.min(3,e.item.n):0):e.heldN,key=hk&&e.b>0?hk+hn:"";
@@ -1630,9 +1649,9 @@ function frame(){
       if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map((x,i)=>`<div class="s" data-i="${i}"><span>${ITEMS[x.k]?ITEMS[x.k].name:""}</span><b>${iconHTML(x.k)}${live?"<i>∞</i>":(x.n>1?"<i>×"+x.n+"</i>":"")}</b></div>`).join("");}}
     {const S=SPECS[me.skin]||SPECS.dog,sb=$("specBtn");let cls,ic=S.icon,nm=S.name,tm="";const act=specActiveUntil(me,t);
       if(me.bearRage>t){cls="on";ic="🎯";nm="報復連射";tm=Math.ceil((me.bearRage-t)/1000)+"秒";}
-      else if(act>t){cls="on";const r=(act-t)/1000;tm=r>=60?Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0"):r.toFixed(1)+"秒";if(me.skin==="bear")nm="報復待機";}
+      else if(act>t){cls="on";const r=(act-t)/1000;tm=r>=60?Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0"):r.toFixed(1)+"秒";if(me.skin==="bear")nm="報復待機";if(me.skin==="lion")nm=freeSlots(me,t)>0?"押して徴収":"ストック満杯";}
       else if(canSpec(me,t)){cls="ready";tm="SPEC";}
-      else{cls="off";tm=me.spUsed?"使用済み":(me.skin==="lion"?"スター待ち":"");}
+      else{cls="off";tm=me.spUsed?"使用済み":"";}
       const key=cls+ic+nm+tm;if(sb.dataset.k!==key){sb.dataset.k=key;sb.className="pbtn "+cls;$("spIc").textContent=ic;$("spName").textContent=nm;$("spT").textContent=tm;}}
     {const live=me.star&&t<me.star;iB.classList.toggle("starOn",!!live);iB.classList.toggle("empty",!it&&!live);
       const bk=live?"starOn":(it?it.k+me.color:""),bi=$("btnIc");if(bi.dataset.k!==bk){bi.dataset.k=bk;bi.innerHTML=live?iconHTML("star"):(it?iconHTML(it.k):"・");}
