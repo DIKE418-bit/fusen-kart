@@ -369,13 +369,13 @@ function allEnts(){const a=[me,...bots,...clones];if(mode==="online"){for(const 
 function roundEnts(){return allEnts().filter(e=>e.local||e.r===round);}
 function scoreOf(id){let s=0;for(const e of allEnts()){if(e.id===id)continue;for(const h of e.h)if(h[0]===id&&h[2]===1)s++;}return s;}
 function spawn(e,i){const s=SPAWNS[i%SPAWNS.length];e.x=e.rx=s[0];e.y=e.ry=s[1];e.a=e.ra=Math.atan2(H/2-s[1],W/2-s[0]);
-  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,heartN:0,gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
+  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,heartN:0,growlUntil:0,gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
 
 // ---------- physics ----------
 const MAX_STOCK=3;
 // ================= character SPEC abilities (one use per round) =================
 const SPECS={
-  dog:{name:"おかわり",icon:"🍖",desc:"持っているアイテム全部を、使い切ったらもう1回おかわりできる"},
+  dog:{name:"威嚇",icon:"💢",dur:40000,desc:"40秒間、自分以外の全員のスピードが50%ダウン"},
   cat:{name:"猫抜け",icon:"👻",dur:40000,desc:"40秒間、障害物をすり抜ける"},
   rabbit:{name:"大家族",icon:"🐰",dur:40000,desc:"自分そっくりの分身を3体、40秒間出す（風船の数も同じ）"},
   penguin:{name:"アイスエイジ",icon:"❄️",dur:40000,desc:"40秒間、まわりを氷づけにする全方位アタック（近づいた相手は何回でも割れる）＋飛んでくる攻撃も凍らせる"},
@@ -394,23 +394,25 @@ function buildTeams(humans,botIds,m){const mp=new Map();if(m===2){humans.forEach
   else if(m===1)[...humans,...botIds].forEach((id,i)=>mp.set(id,i%2));return mp;}
 function applyTeamColors(){if(!teamOn)return;for(const o of [me,...bots]){if(!o)continue;const k=teamOf(o);if(k>=0)o.color=TEAM_COL[k];}}
 const on_=(E,f,flag,t)=>E.local?t<(E[f]||0):!!E[flag];
+const growlOn=(E,t)=>on_(E,"growlUntil","growlFlag",t);
+// dog "威嚇": everyone except the dog (its team and its own clones) drives at half speed
+function growled(e,t){const me_=e.clone?e.owner:e.id;for(const o of allEnts()){if(o.clone||o.skin!=="dog"||o.id===me_||ally(o,e))continue;if(growlOn(o,t))return true;}return false;}
 const ghostOn=(E,t)=>on_(E,"ghostUntil","ghostFlag",t),iceOn=(E,t)=>on_(E,"iceUntil","iceFlag",t),pouchOn=(E,t)=>on_(E,"pouchUntil","pouchFlag",t);
 function hasStar(o){if(o.local)return(o.item&&o.item.k==="star")||(o.stock||[]).some(x=>x.k==="star");return(o.invList||[]).some(q=>q[0]==="star");}
 function starHolders(e){return allEnts().filter(o=>o!==e&&!o.clone&&o.b>0&&!ally(e,o)&&hasStar(o)).sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y));}
 function pouchBlocked(e,t){return allEnts().some(o=>o!==e&&!o.clone&&pouchOn(o,t));}
-function specActiveUntil(e,t){switch(e.skin){case"cat":return e.ghostUntil||0;case"penguin":return e.iceUntil||0;case"bear":return e.bearRage>t?e.bearRage:(e.bearArm||0);
+function specActiveUntil(e,t){switch(e.skin){case"dog":return e.growlUntil||0;case"cat":return e.ghostUntil||0;case"penguin":return e.iceUntil||0;case"bear":return e.bearRage>t?e.bearRage:(e.bearArm||0);
   case"squirrel":return e.dashUntil||0;case"kangaroo":return e.pouchUntil||0;case"rabbit":{let m=0;for(const c of clones)if(c.owner===e.id&&c.b>0)m=Math.max(m,c.cloneUntil);return m;}}return 0;}
 function canSpec(e,t){const S=SPECS[e.skin];if(!S||e.clone||e.b<=0||phase!=="play")return false;
   if(e.bearRage>t)return t>=(e.bearCd||0);
   if(mode==="test"&&e.spUsed&&t>(e.spDoneAt||0)&&specActiveUntil(e,t)<t){e.spUsed=false;e.bearArm=0;}
   if(e.spUsed)return false;
-  if(e.skin==="dog")return itemCount(e,t)>0&&!(e.star&&t<e.star);
   if(e.skin==="lion")return starHolders(e).length>0;
   return true;}
 function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e===me;
   if(e.bearRage>t){e.bearCd=t+RAGE_CD;return launch(e,"homing",t,false);}
   switch(e.skin){
-    case"dog":for(const it of [e.item,...(e.stock||[])])if(it)it.ok=true;if(mine)flash("🍖 おかわり！使い切ったらもう1回！",1600);break;
+    case"dog":e.growlUntil=t+S.dur;if(mine)flash("💢 威嚇！40秒間みんなのスピード半分！",1600);else if(me&&!ally(e,me))flash("💢 "+e.name+" の威嚇！スピードが半分に…",1800);break;
     case"cat":e.ghostUntil=t+S.dur;if(mine)flash("👻 猫抜け！40秒すり抜け",1500);break;
     case"rabbit":spawnClones(e,t);if(mine)flash("🐰 大家族！分身が3体出た！",1500);break;
     case"penguin":e.iceUntil=t+S.dur;e.iceStart=t;e.iceSeq=(e.iceSeq||0)+1;if(mine)flash("❄️ アイスエイジ！",1300);break;
@@ -460,7 +462,7 @@ function drive(e,steer,dHeld,dt,t,go){
   if(e.star&&t>=e.star&&e.starStock&&e.starStock.length)endStar(e);
   if(!e.item&&e.stock&&e.stock.length&&!(e.star&&t<e.star))e.item=e.stock.shift();
   if(t<(e.mirrorUntil||0))steer=-steer;
-  const boosting=t<e.boost,max=(boosting?VBOOST:VMAX)*(t<(e.star||0)?STAR_SPEED:1)*(t<(e.dashUntil||0)?DASH_SPEED:1)*(t<(e.bearRage||0)?RAGE_SPEED:1)*(e.lv?CPU_LV[e.lv].spd:1);
+  const boosting=t<e.boost,max=(boosting?VBOOST:VMAX)*(t<(e.star||0)?STAR_SPEED:1)*(t<(e.dashUntil||0)?DASH_SPEED:1)*(t<(e.bearRage||0)?RAGE_SPEED:1)*(e.lv?CPU_LV[e.lv].spd:1)*(growled(e,t)?.5:1);
   if(e.b<=0){e.v*=Math.pow(.05,dt);e.drifting=false;}
   else if(t<(e.frozenUntil||0)){e.v*=Math.pow(.002,dt);e.drifting=false;e.driftT=0;}
   else if(t<e.spin){e.a+=11*dt;e.v*=Math.pow(.1,dt);e.drifting=false;e.driftT=0;}
@@ -606,7 +608,7 @@ function botThink(b,t,dt){
   if(!b.clone&&tgt){
     if(b.bearRage>t){if(td<750&&t>=(b.bearCd||0))useSpec(b,t);}
     else if(!b.spUsed&&t-phaseAt>6000&&Math.random()<dt*.5*L.spec){const k=b.skin;let go=false;
-      if(k==="dog")go=itemCount(b,t)>=2;else if(k==="lion")go=starHolders(b).length>0;else if(k==="penguin")go=td<ICE_R*.9;
+      if(k==="dog")go=td<700||Math.random()<.05;else if(k==="lion")go=starHolders(b).length>0;else if(k==="penguin")go=td<ICE_R*.9;
       else if(k==="squirrel")go=td<260||Math.random()<.05;else if(k==="cat")go=Math.random()<.08;else go=Math.random()<.06;
       if(go)useSpec(b,t);}}
   const want=Math.atan2(dy,dx)+Math.sin(t/800+b.seed)*L.wob;
@@ -720,6 +722,7 @@ function applyState(e,pr,t){
   e.heldK=Array.isArray(pr.it)&&ITEMS[pr.it[0]]?pr.it[0]:null;e.heldN=Array.isArray(pr.it)?clamp(pr.it[1]|0,0,3):0;e.starFlag=!!pr.sr;
   {const mr=pr.mr|0;if(e.prevMr!==undefined&&mr>e.prevMr&&phase==="play"){for(const o of [me,...bots]){if(!o||ally(e,o))continue;o.mirrorUntil=now()+MIRROR_MS;if(o===me){mirrorFx=now()+MIRROR_MS;flash("🪞 "+e.name+" のミラーマジック！ハンドルが左右逆に！",1800);}}}e.prevMr=mr;}
   e.invList=Array.isArray(pr.inv)?pr.inv.slice(0,3).filter(q=>Array.isArray(q)&&ITEMS[q[0]]).map(q=>[q[0],clamp(q[1]|0,1,3)]):[];
+  {const g=!!pr.gr;if(g&&!e.growlFlag&&phase==="play"&&me&&!ally(e,me))flash("💢 "+e.name+" の威嚇！スピードが半分に…",1800);e.growlFlag=g;}
   e.ghostFlag=!!pr.gh;e.iceFlag=!!pr.ia;e.iceSeq=pr.is|0;e.pouchFlag=!!pr.kg;e.frozenFlag=!!pr.fz;
   {const lt=Array.isArray(pr.lt)?pr.lt:null,n=lt?lt[1]|0:(e.prevLt||0);if(lt&&n>(e.prevLt||0)&&phase==="play"){const v=[me,...bots].find(o=>o&&o.id===lt[0]);if(v){v.item=null;v.stock=[];v.starStock=[];if(v===me)flash("👑 "+e.name+" に全アイテムを徴収された！",2200);}}e.prevLt=n;}
   {const cl=Array.isArray(pr.cl)?pr.cl.slice(0,3):[];for(let i=0;i<3;i++){const id=e.id+"#c"+i,q=cl[i];let c=remoteClones.get(id);
@@ -756,7 +759,7 @@ function syncHostCfg(){if(mode!=="online"||!me||hostRound===round||phase==="lobb
   const h=[...remotes.values()].find(e=>e.hsR&&e.hsR===round);if(!h)return;
   const on=h.cf?h.cf[2]|0:0,mp=new Map((h.tmList||[]).map(q=>[String(q[0]),q[1]|0]));
   const changed=on!==teamOn||mp.size!==teamMap.size;teamOn=on;teamMap=mp;if(changed&&teamOn){applyTeamColors();const k=teamOf(me);if(k>=0)flash("あなたは "+TEAM_NAME[k]+"！",2200);}}
-function entState(e,t){return{inv:[e.item,...(e.stock||[])].filter(Boolean).map(x=>[x.k,x.n]),gh:t<(e.ghostUntil||0)?1:0,ia:t<(e.iceUntil||0)?1:0,is:e.iceSeq||0,kg:t<(e.pouchUntil||0)?1:0,fz:t<(e.frozenUntil||0)?1:0,
+function entState(e,t){return{inv:[e.item,...(e.stock||[])].filter(Boolean).map(x=>[x.k,x.n]),gh:t<(e.ghostUntil||0)?1:0,gr:t<(e.growlUntil||0)?1:0,ia:t<(e.iceUntil||0)?1:0,is:e.iceSeq||0,kg:t<(e.pouchUntil||0)?1:0,fz:t<(e.frozenUntil||0)?1:0,
     lt:e.ltTarget?[e.ltTarget,e.ltN||0]:0,cl:clones.filter(c=>c.owner===e.id).map(c=>[Math.round(c.x),Math.round(c.y),Math.round(c.a*100)/100,c.b,c.h,c.cloneUntil>t?1:0]),
     n:e.name,c:e.color,sk:e.skin||"dog",it:e.item?[e.item.k,e.item.n]:0,sr:t<(e.star||0)?1:0,mr:e.mr||0,sh:e.shield?1:0,mg:t<(e.mag||0)?1:0,jp:t<(e.jump||0)?1:0,ik:e.ik||0,
     x:Math.round(e.x),y:Math.round(e.y),a:Math.round(e.a*100)/100,b:e.b,iv:t<e.inv,bo:t<e.boost||t<(e.dashUntil||0),
@@ -1625,7 +1628,7 @@ function frame(){
       if(me.bearRage>t){cls="on";ic="🎯";nm="報復連射";tm=Math.ceil((me.bearRage-t)/1000)+"秒";}
       else if(act>t){cls="on";const r=(act-t)/1000;tm=r>=60?Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0"):r.toFixed(1)+"秒";if(me.skin==="bear")nm="報復待機";}
       else if(canSpec(me,t)){cls="ready";tm="SPEC";}
-      else{cls="off";tm=me.spUsed?"使用済み":(me.skin==="lion"?"スター待ち":(me.skin==="dog"?"アイテム0":""));}
+      else{cls="off";tm=me.spUsed?"使用済み":(me.skin==="lion"?"スター待ち":"");}
       const key=cls+ic+nm+tm;if(sb.dataset.k!==key){sb.dataset.k=key;sb.className="pbtn "+cls;$("spIc").textContent=ic;$("spName").textContent=nm;$("spT").textContent=tm;}}
     {const live=me.star&&t<me.star;iB.classList.toggle("starOn",!!live);iB.classList.toggle("empty",!it&&!live);
       const bk=live?"starOn":(it?it.k+me.color:""),bi=$("btnIc");if(bi.dataset.k!==bk){bi.dataset.k=bk;bi.innerHTML=live?iconHTML("star"):(it?iconHTML(it.k):"・");}
