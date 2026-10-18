@@ -99,20 +99,26 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 .pad{position:absolute;right:max(18px,calc(env(safe-area-inset-right,0px) + 14px));bottom:calc(env(safe-area-inset-bottom,0px) + 18px);
   display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;gap:10px 14px;align-items:end;pointer-events:none}
 .pbtn{pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;border:0;border-radius:50%;font-family:var(--display);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;cursor:pointer;-webkit-user-select:none;user-select:none}
-#itemBtn{grid-column:2;grid-row:1/3;width:104px;height:104px;background:var(--pop);color:#fff;font-size:.95rem;box-shadow:0 6px 0 #c42c55,0 0 0 5px rgba(255,255,255,.3)}
+#itemBtn{width:104px;height:104px;background:var(--pop);color:#fff;font-size:.95rem;box-shadow:0 6px 0 #c42c55,0 0 0 5px rgba(255,255,255,.3)}
 #itemBtn b{font-size:1.9rem;line-height:1;display:flex;align-items:center;justify-content:center;height:46px}
 #itemBtn b img{width:52px;height:52px;display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
-#stock div img{width:84%;height:84%;display:block}
-#stock{position:absolute;right:20px;bottom:calc(100% + 10px);display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none}
-#stock.live{right:6px;gap:12px;pointer-events:auto}
-#stock.live div{width:80px!important;height:80px!important;opacity:1!important;font-size:2rem!important;border:4px solid #ffd23a;background:radial-gradient(circle,#fff8d0,#ffe27a);box-shadow:0 0 0 4px rgba(255,210,58,.45),0 5px 0 rgba(0,0,0,.25);animation:starPulse .6s ease-in-out infinite alternate;touch-action:none;cursor:pointer}
-#stock.live div:active{transform:scale(.92)}
-#stock.live div i{font-size:.85rem;background:#d1495b}
 @keyframes starPulse{to{box-shadow:0 0 0 9px rgba(255,210,58,.15),0 5px 0 rgba(0,0,0,.25)}}
 #itemBtn.starOn{background:radial-gradient(circle,#ffe98a,#ffb800);color:#5a3a00;box-shadow:0 6px 0 #b77d00,0 0 0 6px rgba(255,230,120,.6)}
-#stock div{width:50px;height:50px;border-radius:50%;background:rgba(255,248,239,.94);border:3px solid var(--pop);display:flex;align-items:center;justify-content:center;position:relative;font-size:1.5rem;box-shadow:0 3px 0 rgba(0,0,0,.25)}
-#stock div+div{width:42px;height:42px;font-size:1.2rem;opacity:.85}
-#stock div i{position:absolute;right:-4px;bottom:-4px;background:var(--ink);color:#fff;font-style:normal;font-family:var(--body);font-weight:900;font-size:.62rem;border-radius:99px;padding:1px 5px}
+.itemWrap{grid-column:2;grid-row:1/3;position:relative;align-self:end;display:flex}
+#stock{position:absolute;right:0;bottom:calc(100% + 2px);display:flex;flex-direction:column-reverse;align-items:flex-end;gap:3px;pointer-events:none}
+#stock .s{display:flex;flex-direction:column;align-items:center;width:104px;position:relative}
+#stock .s b{width:50px;height:50px;flex:none;border-radius:50%;background:rgba(255,248,239,.95);border:3px solid var(--pop);display:flex;align-items:center;justify-content:center;position:relative;font-size:1.5rem;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+#stock .s+.s{opacity:.88}
+#stock .s img{width:84%;height:84%;display:block}
+#stock .s span{order:2;margin-top:-7px;z-index:1;background:rgba(36,28,77,.9);color:#fff;font-family:var(--body);font-weight:900;font-size:.6rem;line-height:1.2;padding:2px 7px;border-radius:99px;white-space:nowrap;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#stock .s i{position:absolute;right:-6px;top:-5px;background:var(--ink);color:#fff;font-style:normal;font-family:var(--body);font-weight:900;font-size:.62rem;border-radius:99px;padding:1px 5px}
+#stock.live{pointer-events:auto;gap:8px}
+#stock.live .s{opacity:1}
+#stock.live .s b{width:80px;height:80px;font-size:2rem;border:4px solid #ffd23a;background:radial-gradient(circle,#fff8d0,#ffe27a);box-shadow:0 0 0 4px rgba(255,210,58,.45),0 5px 0 rgba(0,0,0,.25);animation:starPulse .6s ease-in-out infinite alternate;touch-action:none;cursor:pointer}
+#stock.live .s:active b{transform:scale(.92)}
+#stock.live .s i{font-size:.85rem;background:#d1495b}
+#stock.live .s span{background:#b77d00}
+@keyframes starPulse{to{box-shadow:0 0 0 9px rgba(255,210,58,.15),0 5px 0 rgba(0,0,0,.25)}}
 #itemBtn.empty{background:#6b6394;box-shadow:0 6px 0 #403a63,0 0 0 5px rgba(255,255,255,.2)}
 #driftBtn{grid-column:1;grid-row:2;width:88px;height:88px;background:var(--sky);color:#fff;font-size:.88rem;box-shadow:0 6px 0 #1f73c2,0 0 0 5px rgba(255,255,255,.3);margin-bottom:-4px}
 #driftBtn.held{transform:translateY(4px);box-shadow:0 2px 0 #1f73c2,0 0 0 6px rgba(255,201,60,.8)}
@@ -180,8 +186,8 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
   <div class="pad">
     <button class="pbtn off" id="specBtn" type="button"><b id="spIc">⭐</b><small id="spName">SPEC</small><i id="spT"></i></button>
     <button class="pbtn" id="driftBtn" type="button">ドリ<br>フト</button>
-    <div id="stock"></div>
-    <button class="pbtn empty" id="itemBtn" type="button"><b id="btnIc">・</b><i id="btnN"></i><small id="btnName">アイテム</small></button>
+    <div class="itemWrap"><div id="stock"></div>
+    <button class="pbtn empty" id="itemBtn" type="button"><b id="btnIc">・</b><i id="btnN"></i><small id="btnName">アイテム</small></button></div>
     <div class="backtip">↓スワイプで後ろ</div>
     <div id="spd">0 km/h</div>
   </div>
@@ -1432,7 +1438,7 @@ function frame(){
     const it=me.item,ic=!it?"・":(ITEMS[it.k]?ITEMS[it.k].icon:"・");
     $("slot").classList.toggle("empty",!it);$("slotIc").textContent=ic;$("slotN").textContent=it&&it.n>1?"×"+it.n:"";
     {const live=me.star&&t<me.star,st=live?(me.starStock||[]):(me.stock||[]),key=(live?"S:":"")+st.map(x=>x.k+x.n).join(",");const box=$("stock");box.classList.toggle("live",!!live&&st.length>0);
-      if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map((x,i)=>`<div data-i="${i}">${iconHTML(x.k)}${live?"<i>∞</i>":(x.n>1?"<i>×"+x.n+"</i>":"")}</div>`).join("");}}
+      if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map((x,i)=>`<div class="s" data-i="${i}"><span>${ITEMS[x.k]?ITEMS[x.k].name:""}</span><b>${iconHTML(x.k)}${live?"<i>∞</i>":(x.n>1?"<i>×"+x.n+"</i>":"")}</b></div>`).join("");}}
     {const S=SPECS[me.skin]||SPECS.dog,sb=$("specBtn");let cls,ic=S.icon,nm=S.name,tm="";const act=specActiveUntil(me,t);
       if(me.bearRage>t){cls="on";ic="🎯";nm="報復連射";tm=Math.ceil((me.bearRage-t)/1000)+"秒";}
       else if(act>t){cls="on";const r=(act-t)/1000;tm=r>=60?Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0"):r.toFixed(1)+"秒";if(me.skin==="bear")nm="報復待機";}
