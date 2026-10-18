@@ -275,12 +275,12 @@ const ITEMS={
   homing:{name:"ストーカーミサイル",icon:"🎯",n:1,w:12,hold:true,kind:"proj",speed:400,back:400,life:6000,bounce:true,die:true,lock:true,face:true,hit:"pop",step:(p,o,dt,t)=>homingStep(p,o,dt,t),mesh:()=>buildMissile()},
   bubble:{name:"バリバリバリア",icon:"🛡️",n:1,w:10,use:(e,t)=>{e.shield=1;e.shieldUntil=t+120000;if(e===me)flash("🛡️ バリバリバリア！（攻撃されなければ2分）",1600);}},
   ink:{name:"お邪魔インク",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;localInk(e,t);}},
-  mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&(mode!=="test"||bots.length))flash("🪞 ミラーマジック発動！みんなのハンドルが5秒逆に！",1600);localMirror(e,t);}},
+  mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&(mode!=="test"||bots.length))flash("🪞 ミラーマジック発動！みんなのハンドルが4秒逆に！",1600);localMirror(e,t);}},
   star:{name:"スター",icon:"🌟",n:1,w:2,use:(e,t)=>{e.star=t+STAR_MS;e.starStock=(e.stock||[]).slice(0,2);e.stock=[];e.starCd=[0,0];if(e===me)flash(e.starStock.length?"🌟 スター！無敵＋体当たりアタック＋上のアイテム撃ち放題！":"🌟 スター！無敵＋体当たりでアタック！",1800);}},
   starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:540,back:300,life:4000,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
 };
-let mirrorFx=0;
-function localMirror(src,t){if(mode==="test"&&me&&!bots.length){me.mirrorUntil=t+5000;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;o.mirrorUntil=t+5000;if(o===me){mirrorFx=t+5000;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
+let mirrorFx=0;const MIRROR_MS=4000;
+function localMirror(src,t){if(mode==="test"&&me&&!bots.length){me.mirrorUntil=t+MIRROR_MS;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;o.mirrorUntil=t+MIRROR_MS;if(o===me){mirrorFx=t+MIRROR_MS;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
 // ---------- walls (axis-aligned rectangles [x1,y1,x2,y2]) ----------
 let WALLS=[];
 function pushOutRect(o,r,w){const cx=clamp(o.x,w[0],w[2]),cy=clamp(o.y,w[1],w[3]);const dx=o.x-cx,dy=o.y-cy,d=Math.hypot(dx,dy);
@@ -703,7 +703,7 @@ function applyState(e,pr,t){
   e.pj=Array.isArray(pr.pj)?pr.pj.slice(0,6).filter(Array.isArray).map(q=>({id:q[0]|0,x:+q[1]||0,y:+q[2]||0,vx:+q[3]||0,vy:+q[4]||0,k:ITEMS[q[5]]?q[5]:"spike",t})):[];
   e.h=parseH(pr.h);
   e.heldK=Array.isArray(pr.it)&&ITEMS[pr.it[0]]?pr.it[0]:null;e.heldN=Array.isArray(pr.it)?clamp(pr.it[1]|0,0,3):0;e.starFlag=!!pr.sr;
-  {const mr=pr.mr|0;if(e.prevMr!==undefined&&mr>e.prevMr&&phase==="play"){for(const o of [me,...bots]){if(!o||ally(e,o))continue;o.mirrorUntil=now()+5000;if(o===me){mirrorFx=now()+5000;flash("🪞 "+e.name+" のミラーマジック！ハンドルが左右逆に！",1800);}}}e.prevMr=mr;}
+  {const mr=pr.mr|0;if(e.prevMr!==undefined&&mr>e.prevMr&&phase==="play"){for(const o of [me,...bots]){if(!o||ally(e,o))continue;o.mirrorUntil=now()+MIRROR_MS;if(o===me){mirrorFx=now()+MIRROR_MS;flash("🪞 "+e.name+" のミラーマジック！ハンドルが左右逆に！",1800);}}}e.prevMr=mr;}
   e.invList=Array.isArray(pr.inv)?pr.inv.slice(0,3).filter(q=>Array.isArray(q)&&ITEMS[q[0]]).map(q=>[q[0],clamp(q[1]|0,1,3)]):[];
   e.ghostFlag=!!pr.gh;e.iceFlag=!!pr.ia;e.iceSeq=pr.is|0;e.pouchFlag=!!pr.kg;e.frozenFlag=!!pr.fz;
   {const lt=Array.isArray(pr.lt)?pr.lt:null,n=lt?lt[1]|0:(e.prevLt||0);if(lt&&n>(e.prevLt||0)&&phase==="play"){const v=[me,...bots].find(o=>o&&o.id===lt[0]);if(v){v.item=null;v.stock=[];v.starStock=[];if(v===me)flash("👑 "+e.name+" に全アイテムを徴収された！",2200);}}e.prevLt=n;}
@@ -1522,6 +1522,7 @@ function frame(){
     drive(me,go?readSteer(dt):0,go&&driftHeld(),dt,t,go);
     for(const b of bots){const [s,d]=go?botThink(b,t,dt):[0,false];drive(b,s,d,dt,t,go);}
     stepClones(t,dt,go);
+    for(const b of bots)if(t<b.boost)b.inkUntil=0;
     for(const e of [me,...bots])stepProj(e,dt,t);
     if(go)for(const e of [me,...bots,...clones]){resolveHits(e,t);resolveIce(e,t);if(!e.clone)bearWatch(e,t);resolveRam(e,t);resolveMagnet(e,t);gainSteals(e);if(e.shield&&t>e.shieldUntil)e.shield=0;}
     for(const e of [...remotes.values(),...remoteBots.values()])for(const p of e.pj){p.x+=p.vx*dt;p.y+=p.vy*dt;}
@@ -1607,6 +1608,7 @@ function frame(){
     {const live=me.star&&t<me.star;iB.classList.toggle("starOn",!!live);iB.classList.toggle("empty",!it&&!live);
       const bk=live?"starOn":(it?it.k+me.color:""),bi=$("btnIc");if(bi.dataset.k!==bk){bi.dataset.k=bk;bi.innerHTML=live?iconHTML("star"):(it?iconHTML(it.k):"・");}
       $("btnN").textContent=live?((me.star-t)/1000).toFixed(1)+"秒":(it&&it.n>1?"×"+it.n:"");$("btnName").textContent=live?"スター中":(it&&ITEMS[it.k]?ITEMS[it.k].name:"アイテム");}
+    if(inkUntil-t>450&&me&&t<me.boost){inkUntil=t+450;flash("💨 ターボでインクを吹き飛ばした！",1200);}
     {const left=inkUntil-t,c=$("ink");c.style.opacity=left>0?String(Math.min(1,left/500)):"0";}$("mirrorFx").classList.toggle("on",t<(me.mirrorUntil||0));
     {const A=ART[me.skin]||ART.dog,f=({penguin:[0,1,4,3,2]}[me.skin]||[0,1,2,3,4])[me.b<=0||t<me.inv?2:me.drifting?3:t<me.boost?4:t-(me.lastThrow||-1e9)<700?1:0],key=(me.skin||"dog")+f,fi=$("faceImg");if(fi.dataset.f!==key){fi.dataset.f=key;fi.dataset.fbTried="";fi.src=A["f"+f];}}
     const lv=me.drifting?driftLevel(me.driftT):0;dB.classList.toggle("l1",lv===1);dB.classList.toggle("l2",lv===2);dB.classList.toggle("l3",lv===3);
