@@ -249,12 +249,12 @@ const ITEMS={
   homing:{name:"ストーカーミサイル",icon:"🎯",n:1,w:12,hold:true,kind:"proj",speed:400,back:400,life:6000,bounce:true,die:true,lock:true,face:true,hit:"pop",step:(p,o,dt,t)=>homingStep(p,o,dt,t),mesh:()=>buildMissile()},
   bubble:{name:"バリバリバリア",icon:"🛡️",n:1,w:10,use:(e,t)=>{e.shield=1;e.shieldUntil=t+120000;if(e===me)flash("🛡️ バリバリバリア！（攻撃されなければ2分）",1600);}},
   ink:{name:"お邪魔インク",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;if(mode!=="online")localInk(e,t);}},
-  mirror:{name:"鏡の呪い",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(mode!=="online")localMirror(e,t);}},
+  mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&mode!=="test")flash("🪞 ミラーマジック発動！みんなのハンドルが5秒逆に！",1600);if(mode!=="online")localMirror(e,t);}},
   star:{name:"スター",icon:"🌟",n:1,w:2,use:(e,t)=>{e.star=t+15000;e.item={k:"starshot",n:3};if(e===me)flash("🌟 スター！15秒無敵＋弾が障害物をすり抜け");return "keep";}},
   starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:540,back:300,life:4000,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
 };
 let mirrorFx=0;
-function localMirror(src,t){if(mode==="test"&&me){me.mirrorUntil=t+5000;flash("🪞 鏡の呪い！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src)continue;o.mirrorUntil=t+5000;if(o===me){mirrorFx=t+5000;flash("🪞 鏡の呪い！ハンドルが逆に！",1800);}}}
+function localMirror(src,t){if(mode==="test"&&me){me.mirrorUntil=t+5000;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src)continue;o.mirrorUntil=t+5000;if(o===me){mirrorFx=t+5000;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
 // ---------- walls (axis-aligned rectangles [x1,y1,x2,y2]) ----------
 let WALLS=[];
 function pushOutRect(o,r,w){const cx=clamp(o.x,w[0],w[2]),cy=clamp(o.y,w[1],w[3]);const dx=o.x-cx,dy=o.y-cy,d=Math.hypot(dx,dy);
@@ -545,7 +545,7 @@ function onPeersChange(ch){
     e.co=COURSES[pr.co]?pr.co:"arena";
     e.h=Array.isArray(pr.h)?pr.h.slice(0,8).map(q=>[String(q[0]),q[1]|0,q[2]|0]):[];
     e.heldK=Array.isArray(pr.it)&&ITEMS[pr.it[0]]?pr.it[0]:null;e.heldN=Array.isArray(pr.it)?clamp(pr.it[1]|0,0,3):0;e.starFlag=!!pr.sr;
-    {const mr=pr.mr|0;if(e.prevMr!==undefined&&mr>e.prevMr&&phase==="play"){me.mirrorUntil=now()+5000;mirrorFx=now()+5000;flash("🪞 "+e.name+" の鏡の呪い！ハンドルが逆に！",1800);}e.prevMr=mr;}
+    {const mr=pr.mr|0;if(e.prevMr!==undefined&&mr>e.prevMr&&phase==="play"){me.mirrorUntil=now()+5000;mirrorFx=now()+5000;flash("🪞 "+e.name+" のミラーマジック！ハンドルが左右逆に！",1800);}e.prevMr=mr;}
     e.shield=pr.sh?1:0;e.mgFlag=!!pr.mg;if(pr.jp&&!e.jpFlag)e.jumpAtLocal=t;e.jpFlag=!!pr.jp;
     {const ik=pr.ik|0;if(e.prevIk!==undefined&&ik>e.prevIk&&phase==="play")showInk();e.prevIk=ik;}
   }
@@ -994,12 +994,13 @@ const hexTex=canvasTex(1024,512,(g,w,h)=>{
   const star=(x,y,R,c)=>{g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?R*.45:R;g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);}g.closePath();g.fillStyle=c;g.fill();};
   for(let i=0;i<26;i++)star(Math.random()*w,Math.random()*h,8+Math.random()*14,i%3?"rgba(255,255,255,.85)":"rgba(255,226,90,.9)");});
 hexTex.wrapS=THREE.RepeatWrapping;
+const mirrorSwirlMat=new THREE.MeshBasicMaterial({color:0xc070ff,transparent:true,opacity:.75,blending:THREE.AdditiveBlending,depthWrite:false});
 const bubbleGeo=new THREE.SphereGeometry(40,36,20,0,Math.PI*2,0,Math.PI*.58),
   bubbleMat=new THREE.MeshBasicMaterial({map:hexTex,transparent:true,opacity:.85,depthWrite:false,side:THREE.DoubleSide,toneMapped:false});
 function barriFx(x,z){popFx(x,z,"#bfe8ff",16);popFx(x,z,"#ff9be6",30);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xbfe8ff,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));
   s.position.set(x,26,z);scene.add(s);const t0=now(),step=()=>{const k=(now()-t0)/320;if(k>=1){scene.remove(s);s.material.dispose();return;}s.scale.setScalar(60+k*120);s.material.opacity=1-k;requestAnimationFrame(step);};step();}
 const magGeo=new THREE.TorusGeometry(7,2.6,10,20,Math.PI),magMat=new THREE.MeshStandardMaterial({color:0xe23434,roughness:.35,metalness:.3}),magTipGeo=new THREE.BoxGeometry(5.2,4,5.2),magTipMat=new THREE.MeshStandardMaterial({color:0xdddddd,metalness:.8,roughness:.25});
-SHARED.add(bubbleMat);SHARED.add(magMat);SHARED.add(magTipMat);
+SHARED.add(bubbleMat);SHARED.add(mirrorSwirlMat);SHARED.add(magMat);SHARED.add(magTipMat);
 function buildKart(e,isMe){
   const root=new THREE.Group(),body=new THREE.Group(),shell=new THREE.Group();root.add(body);body.add(shell);
   const col=T(e.color,{roughness:.3,metalness:.2});const part=(geo,mat,x,y,z,parent)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;(parent||shell).add(m);return m;};
@@ -1048,12 +1049,14 @@ function buildKart(e,isMe){
   const blob=new THREE.Mesh(new THREE.CircleGeometry(24,20),new THREE.MeshBasicMaterial({color:"#000",transparent:true,opacity:.2,depthWrite:false}));blob.rotation.x=-Math.PI/2;blob.position.y=.6;root.add(blob);
   let label=null;if(!isMe){label=labelSprite(e.name);label.position.y=96;root.add(label);}
   const held=new THREE.Group();root.add(held);
+  const swirl=new THREE.Group();swirl.visible=false;root.add(swirl);
+  for(let i=0;i<3;i++){const r=new THREE.Mesh(new THREE.TorusGeometry(30-i*4,1.1,6,40,Math.PI*1.3),mirrorSwirlMat);r.rotation.x=Math.PI/2;r.position.y=10+i*12;r.rotation.z=i*2.1;swirl.add(r);}
   const aura=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xfff07a,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));aura.scale.set(110,90,1);aura.position.y=22;aura.visible=false;root.add(aura);
   const bubble=new THREE.Mesh(bubbleGeo,bubbleMat);bubble.position.y=-2;bubble.renderOrder=5;bubble.visible=false;root.add(bubble);
   const mag=new THREE.Group();mag.position.set(-4,78,0);mag.visible=false;root.add(mag);
   {const u=new THREE.Mesh(magGeo,magMat);u.rotation.z=Math.PI;mag.add(u);for(const sd of [-1,1]){const tip=new THREE.Mesh(magTipGeo,magTipMat);tip.position.set(sd*7,0,0);mag.add(tip);}}
   scene.add(root);
-  return{root,body,shell,wheels,balloons,flame,flame2,sparks,sparkMat,label,scarf,bubble,mag,held,aura,heldKey:"",skin:e.skin,color:e.color,name:e.name};
+  return{root,body,shell,wheels,balloons,flame,flame2,sparks,sparkMat,label,scarf,bubble,mag,held,aura,swirl,heldKey:"",skin:e.skin,color:e.color,name:e.name};
 }
 function disposeObj(o){scene.remove(o.root);o.root.traverse(n=>{if(n.geometry&&![fWheel,rWheel,hubGeo,bubbleGeo,magGeo,magTipGeo].includes(n.geometry)&&!(typeof keepGeo!=="undefined"&&keepGeo.has(n.geometry)))n.geometry.dispose();
   if(n.material&&!SHARED.has(n.material)){if(n.material.map)n.material.map.dispose();n.material.dispose();}});}
@@ -1159,10 +1162,18 @@ function iconModel(k,color){
     [[-7,3],[7,2],[-5,-6],[6,-5],[0,6]].forEach(([x,y])=>{const b=new THREE.Mesh(new THREE.SphereGeometry(2.4,10,8),blobM);b.position.set(x,y,5.4);g.add(b);});
     for(const sd of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(2.2,12,8,0,Math.PI*2,Math.PI*.42,Math.PI*.58),new THREE.MeshBasicMaterial({color:0xffffff}));e.position.set(sd*3,0,8.2);e.rotation.z=-.5*sd;e.scale.set(1,1,.6);g.add(e);}
     g.rotation.x=.25;}
-  if(k==="mirror"){const fr=new THREE.MeshStandardMaterial({color:0xb36cff,roughness:.25,metalness:.6});
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(9,2.2,12,28),fr);ring.position.y=4;g.add(ring);
-    const gl=new THREE.Mesh(new THREE.CircleGeometry(9,28),new THREE.MeshStandardMaterial({color:0xd8f2ff,roughness:.05,metalness:.9,emissive:0x4a3a7a,emissiveIntensity:.4}));gl.position.set(0,4,.4);g.add(gl);
-    const hd=new THREE.Mesh(new THREE.CylinderGeometry(2,2.4,12,10),fr);hd.position.y=-11;g.add(hd);g.rotation.z=-.35;}
+  if(k==="mirror"){const gold=T("#e0a72a",{roughness:.22,metalness:.9}),gem=T("#9b3df0",{roughness:.1,metalness:.2,emissive:new THREE.Color("#3a0a6a"),emissiveIntensity:.6});
+    const fr=new THREE.Mesh(new THREE.TorusGeometry(9,1.8,12,36),gold);fr.scale.set(.82,1.12,1);fr.position.y=4;g.add(fr);
+    const fr2=new THREE.Mesh(new THREE.TorusGeometry(10.6,.7,8,36),gold);fr2.scale.set(.82,1.12,1);fr2.position.y=4;g.add(fr2);
+    const gl=new THREE.Mesh(new THREE.CircleGeometry(8.6,32),T("#7a3ed0",{roughness:.05,metalness:.6,emissive:new THREE.Color("#3a1670"),emissiveIntensity:.6}));gl.scale.set(.82,1.12,1);gl.position.set(0,4,.3);g.add(gl);
+    const ghost=new THREE.Mesh(new THREE.SphereGeometry(4.6,18,12),T("#14081f",{roughness:.4}));ghost.scale.set(1.15,1,.4);ghost.position.set(0,3.6,1.2);g.add(ghost);
+    for(const sd of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(1.5,10,8,0,Math.PI*2,Math.PI*.4,Math.PI*.6),new THREE.MeshBasicMaterial({color:0xf2d8ff}));e.position.set(sd*2,3.6,2.9);e.rotation.z=-.5*sd;g.add(e);}
+    const top=new THREE.Mesh(new THREE.OctahedronGeometry(2.4,0),gem);top.position.y=17.6;g.add(top);
+    const bow=new THREE.Mesh(new THREE.TorusGeometry(2.4,.8,8,16),gold);bow.position.y=15;g.add(bow);
+    const hd=new THREE.Mesh(new THREE.CylinderGeometry(1.6,2,9,10),gold);hd.position.y=-11.5;g.add(hd);
+    const bg=new THREE.Mesh(new THREE.OctahedronGeometry(2,0),gem);bg.position.y=-17;g.add(bg);
+    for(const sd of [-1,1]){const sg=new THREE.Mesh(new THREE.SphereGeometry(1.3,10,8),gem);sg.position.set(sd*8.8,4,.6);g.add(sg);}
+    g.rotation.z=-.3;}
   if(k==="star"){const sh=new THREE.Shape();for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,r=i%2?6:14;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
     const st=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:5,bevelEnabled:true,bevelThickness:2,bevelSize:1.6,bevelSegments:2}),new THREE.MeshStandardMaterial({color:0xffd23a,emissive:0x8a6a00,roughness:.3,metalness:.4}));
     st.position.z=-2.5;g.add(st);for(const sd of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(1.4,8,6),new THREE.MeshBasicMaterial({color:0x2a1a0a}));e.position.set(sd*3,2,5.4);e.scale.set(.7,1.3,1);g.add(e);}}
@@ -1229,6 +1240,7 @@ function frame(){
     seen.add(e);
     {const ja=e.local?(t<e.jump?(t-e.jumpAt)/1150:-1):(e.jpFlag?Math.min(1,(t-(e.jumpAtLocal||t))/1150):-1);o.root.position.set(e.rx,ja>=0?Math.sin(ja*Math.PI)*46:0,e.ry);}
     o.root.rotation.y=-e.ra;
+    o.swirl.visible=e.local&&t<(e.mirrorUntil||0)&&e.b>0;if(o.swirl.visible)o.swirl.children.forEach((r,i)=>r.rotation.z+=dt*(3+i));
     o.bubble.visible=!!e.shield&&e.b>0&&!(e.local&&e.shieldUntil-t<6000&&Math.floor(t/150)%2===0);if(o.bubble.visible){{const k=1+Math.sin(t/180)*.03;o.bubble.scale.set(k,k*1.55,k);}o.bubble.rotation.y=-o.root.rotation.y+t/2600;}
     o.mag.visible=(e.local?t<(e.mag||0):e.mgFlag)&&e.b>0;if(o.mag.visible)o.mag.rotation.y=t/300;
     {const hk=e.local?(e.item&&ITEMS[e.item.k]&&ITEMS[e.item.k].hold?e.item.k:null):e.heldK,hn=e.local?(e.item?Math.min(3,e.item.n):0):e.heldN,key=hk&&e.b>0?hk+hn:"";
