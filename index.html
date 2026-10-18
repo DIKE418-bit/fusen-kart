@@ -282,7 +282,9 @@ function pushOutRect(o,r,w){const cx=clamp(o.x,w[0],w[2]),cy=clamp(o.y,w[1],w[3]
 function segHitsRect(x1,y1,x2,y2,w){let t0=0,t1=1;const dx=x2-x1,dy=y2-y1,P=[-dx,dx,-dy,dy],Q=[x1-w[0],w[2]-x1,y1-w[1],w[3]-y1];
   for(let i=0;i<4;i++){if(P[i]===0){if(Q[i]<0)return false;}else{const r=Q[i]/P[i];if(P[i]<0){if(r>t1)return false;if(r>t0)t0=r;}else{if(r<t0)return false;if(r<t1)t1=r;}}}return true;}
 function segHitsCircle(x1,y1,x2,y2,c){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy||1,u=clamp(((c.x-x1)*dx+(c.y-y1)*dy)/l2,0,1);return Math.hypot(x1+u*dx-c.x,y1+u*dy-c.y)<c.r;}
-function losClear(x1,y1,x2,y2){for(const w of WALLS)if(segHitsRect(x1,y1,x2,y2,w))return false;for(const c of PILLARS)if(segHitsCircle(x1,y1,x2,y2,c))return false;return true;}
+let SOLID=null; // optional course terrain test: SOLID(x,y) -> true where karts can't drive (water, cliffs)
+function solidAt(x,y){return !!(SOLID&&SOLID(x,y));}
+function losClear(x1,y1,x2,y2){if(SOLID){const n=Math.ceil(Math.hypot(x2-x1,y2-y1)/40);for(let i=1;i<n;i++){const u=i/n;if(SOLID(x1+(x2-x1)*u,y1+(y2-y1)*u))return false;}}for(const w of WALLS)if(segHitsRect(x1,y1,x2,y2,w))return false;for(const c of PILLARS)if(segHitsCircle(x1,y1,x2,y2,c))return false;return true;}
 let inkUntil=0;
 // ---------- Ojama Ink: splats cover the screen for 3.5s; rubbing the screen wipes them away ----------
 const INK_MS=3500,INK_SCALE=.5;
@@ -398,7 +400,7 @@ function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e
     case"kangaroo":e.pouchUntil=t+S.dur;if(mine)flash("👜 袋隠し！30秒間アイテムはあなただけのもの",1800);break;}
   e.spUsed=true;e.spDoneAt=t+Math.min(S.dur||0,10000)+1500;return true;}
 function spawnClones(o,t){for(let i=0;i<3;i++){const c=makeEnt(o.id+"#c"+i,o.name,o.color,true,true);c.skin=o.skin;c.clone=true;c.owner=o.id;c.cloneUntil=t+CLONE_MS;
-  const a=o.a+(i-1)*2.1+Math.PI;Object.assign(c,{x:clamp(o.x+Math.cos(a)*90,R,W-R),y:clamp(o.y+Math.sin(a)*90,R,H-R),a:o.a,v:o.v,b:o.b,prevB:o.b,stock:[],starStock:[],starCd:[0,0],h:[],pj:[],r:round});
+  const a=o.a+(i-1)*2.1+Math.PI;let cx=clamp(o.x+Math.cos(a)*90,R,W-R),cy=clamp(o.y+Math.sin(a)*90,R,H-R);if(solidAt(cx,cy)){cx=o.x;cy=o.y;}Object.assign(c,{x:cx,y:cy,a:o.a,v:o.v,b:o.b,prevB:o.b,stock:[],starStock:[],starCd:[0,0],h:[],pj:[],r:round});
   c.rx=c.x;c.ry=c.y;c.ra=c.a;clones.push(c);popFx(c.x,c.y,"#ffffff",20);}}
 function stepClones(t,dt,go){for(const c of clones){const [s,d]=go?botThink(c,t,dt):[0,false];drive(c,s,d,dt,t,go);}
   clones=clones.filter(c=>{if(c.b<=0&&!c.deadAt)c.deadAt=t+700;const keep=t<c.cloneUntil&&!(c.deadAt&&t>c.deadAt);if(!keep&&c.b>0)popFx(c.x,c.y,"#ffffff",30);return keep;});}
@@ -440,10 +442,12 @@ function drive(e,steer,dHeld,dt,t,go){
     } else e.a+=steer*2.5*spd*dt;
   } else e.v*=Math.pow(.1,dt);
   e.steer=steer;
-  e.x+=Math.cos(e.a)*e.v*dt;e.y+=Math.sin(e.a)*e.v*dt;
+  const px=e.x,py=e.y;e.x+=Math.cos(e.a)*e.v*dt;e.y+=Math.sin(e.a)*e.v*dt;
+  let hitSolid=false;if(SOLID&&SOLID(e.x,e.y)){hitSolid=true;if(!SOLID(e.x,py))e.y=py;else if(!SOLID(px,e.y))e.x=px;else{e.x=px;e.y=py;}}
   // obstacles: slow down, but never below 65% of max speed
   const floorV=OBSTACLE_FLOOR*max;const slow=()=>{if(e.v>floorV)e.v=Math.max(floorV,e.v*.8);};
   if(e.x<R){e.x=R;slow()}if(e.x>W-R){e.x=W-R;slow()}if(e.y<R){e.y=R;slow()}if(e.y>H-R){e.y=H-R;slow()}
+  if(hitSolid)slow();
   if(!(t<(e.ghostUntil||0))){for(const p of PILLARS){const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy)||1;if(d<p.r+R){e.x=p.x+dx/d*(p.r+R);e.y=p.y+dy/d*(p.r+R);slow();}}
     for(const w of WALLS){if(pushOutRect(e,R,w))slow();}}
   for(const o of allEnts()){if(o===e||o.b<=0||e.b<=0)continue;const dx=e.x-o.x,dy=e.y-o.y,d=Math.hypot(dx,dy)||1;if(d<R*2){e.x+=dx/d*(R*2-d)*.6;e.y+=dy/d*(R*2-d)*.6;e.v*=.9;}}
@@ -462,7 +466,9 @@ function useItem(e,t,back){
   const it=e.item,k=it.k;if(--it.n<=0)e.item=null;launch(e,k,t,back);if(it.n<=0)grantRefill(e,it);return true;
 }
 function stepProj(e,dt,t){
-  for(const p of e.pj){const def=ITEMS[p.k]||ITEMS.spike;if(def.step)def.step(p,e,dt,t);p.x+=p.vx*dt;p.y+=p.vy*dt;
+  for(const p of e.pj){const def=ITEMS[p.k]||ITEMS.spike;if(def.step)def.step(p,e,dt,t);const ox=p.x,oy=p.y;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(SOLID&&!def.ghost&&def.bounce!==false&&SOLID(p.x,p.y)){if(def.die){p.dead=true;boomFx(p.x,p.y);continue;}
+      if(!SOLID(p.x,oy))p.vy=-p.vy;else if(!SOLID(ox,p.y))p.vx=-p.vx;else{p.vx=-p.vx;p.vy=-p.vy;}p.x=ox;p.y=oy;}
     if(def.bounce===false)continue;
     if(def.die){let hit=p.x<PR||p.x>W-PR||p.y<PR||p.y>H-PR;
       if(!hit)for(const w of WALLS){if(p.x>w[0]-PR&&p.x<w[2]+PR&&p.y>w[1]-PR&&p.y<w[3]+PR){hit=true;break;}}
@@ -525,12 +531,14 @@ function botThink(b,t,dt){
   if(b.b<=0)return[0,false];
   let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
   let gx=W/2,gy=H/2;
-  if(b.clone){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
+  if(b.clone){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){for(let k=0;k<20;k++){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];if(!solidAt(b.wp[0],b.wp[1]))break;}b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
   else if(!b.item){let bd=1e9;for(const bx of BOXES)if(bx.on){const d=Math.hypot(bx.x-b.x,bx.y-b.y);if(d<bd){bd=d;gx=bx.x;gy=bx.y;}}}
   else if(tgt){const lead=td/540;gx=tgt.x+Math.cos(tgt.a)*tgt.v*lead;gy=tgt.y+Math.sin(tgt.a)*tgt.v*lead;}
   let dx=gx-b.x,dy=gy-b.y;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
   for(const p of PILLARS){const px=p.x-b.x,py=p.y-b.y,d=Math.hypot(px,py);if(d<p.r+95){const side=(px*dy-py*dx)>0?-1:1;dx+=-py/d*side*1.4;dy+=px/d*side*1.4;}}
   {const pr={x:b.x+Math.cos(b.a)*85,y:b.y+Math.sin(b.a)*85};for(const w of WALLS){const n=pushOutRect(pr,30,w);if(n){const side=(n[0]*dy-n[1]*dx)>0?1:-1;dx+=n[0]*1.6-n[1]*side*1.2;dy+=n[1]*1.6+n[0]*side*1.2;}}}
+  if(SOLID){const da=Math.atan2(dy,dx);for(const off of [0,.35,-.35,.7,-.7,1.05,-1.05,1.45,-1.45,1.9,-1.9,2.5,-2.5]){const a=da+off;
+      if(!SOLID(b.x+Math.cos(a)*90,b.y+Math.sin(a)*90)&&!SOLID(b.x+Math.cos(a)*170,b.y+Math.sin(a)*170)){if(off){dx=Math.cos(a);dy=Math.sin(a);}break;}}}
   const ex=b.x+Math.cos(b.a)*70,ey=b.y+Math.sin(b.a)*70;if(ex<60||ex>W-60||ey<60||ey>H-60){dx+=(W/2-b.x)/(W/2);dy+=(H/2-b.y)/(H/2);}
   b.fireCd-=dt;
   if(tgt&&b.item&&b.fireCd<=0&&t>(b.inkUntil||0)){const k=b.item.k,want=Math.atan2(tgt.y-b.y,tgt.x-b.x),df=Math.abs(angDiff(want,b.a));
@@ -803,7 +811,7 @@ function showMat(k){if(showMats[k])return showMats[k];const d=ITEMS[k];const tx=
 function setupBoxes(test){
   for(const b of BOXES){if(b.mesh){CG.remove(b.mesh);b.mesh.geometry.dispose();}if(b.sh){CG.remove(b.sh);b.sh.geometry.dispose();}if(b.label){CG.remove(b.label);b.label.material.map.dispose();b.label.material.dispose();}}
   if(test){const s=SPAWNS[0],a=Math.atan2(H/2-s[1],W/2-s[0]),fx=Math.cos(a),fy=Math.sin(a),keys=Object.keys(ITEMS).filter(k=>ITEMS[k].w>0);
-    BOXES=keys.map((k,i)=>({x:s[0]+fx*300+(-fy)*(i-(keys.length-1)/2)*80,y:s[1]+fy*300+fx*(i-(keys.length-1)/2)*80,on:true,back:0,fixed:k}));}
+    BOXES=loadedCourse.testBoxes?loadedCourse.testBoxes(keys).map(([x,y],i)=>({x,y,on:true,back:0,fixed:keys[i]})):keys.map((k,i)=>({x:s[0]+fx*300+(-fy)*(i-(keys.length-1)/2)*80,y:s[1]+fy*300+fx*(i-(keys.length-1)/2)*80,on:true,back:0,fixed:k}));}
   else BOXES=loadedCourse.boxes.map(([x,y])=>({x,y,on:true,back:0}));
   itemBoxes();
 }
@@ -922,6 +930,72 @@ function buildPark(){
   for(let i=0;i<70;i++){const a=i/70*Math.PI*2,x=W/2+Math.cos(a)*(W*.66+Math.random()*160),z=H/2+Math.sin(a)*(H*.72+Math.random()*160);tree(x,z,1+Math.random()*.4);}
   setBoards(true);
 }
+// ---------- Summer Island: sand ring track around a lagoon, 4 rope bridges to the center island ----------
+const SU={W:4800,H:3200,qOut:.92,qIn:.62,qIs:.25,bw:62};
+function summerQ(x,y){const dx=(x-SU.W/2)/(SU.W/2),dy=(y-SU.H/2)/(SU.H/2);return Math.hypot(dx,dy);}
+function summerSolid(x,y){const q=summerQ(x,y);if(q>SU.qOut)return true;if(q<=SU.qIs||q>=SU.qIn)return false;
+  return !(Math.abs(y-SU.H/2)<SU.bw||Math.abs(x-SU.W/2)<SU.bw);}
+function summerPt(q,a){return[SU.W/2+Math.cos(a)*q*SU.W/2,SU.H/2+Math.sin(a)*q*SU.H/2];}
+let summerWater=null;
+function buildSummer(){
+  const cx=W/2,cy=H/2,ax=W/2,ay=H/2;
+  // ocean
+  summerWater=canvasTex(256,256,(g,w,h)=>{g.fillStyle="#1fa6e0";g.fillRect(0,0,w,h);for(let i=0;i<260;i++){g.fillStyle=`rgba(${Math.random()<.5?"255,255,255":"120,230,255"},${.08+Math.random()*.18})`;g.beginPath();g.ellipse(Math.random()*w,Math.random()*h,6+Math.random()*16,2+Math.random()*3,Math.random()*3,0,7);g.fill();}});
+  summerWater.wrapS=summerWater.wrapT=THREE.RepeatWrapping;summerWater.repeat.set(40,40);
+  const sea=add(new THREE.Mesh(new THREE.PlaneGeometry(16000,16000),new THREE.MeshStandardMaterial({map:summerWater,roughness:.15,metalness:.25,color:new THREE.Color("#ffffff")})));sea.rotation.x=-Math.PI/2;sea.position.set(cx,-14,cy);sea.receiveShadow=true;
+  const lag=add(new THREE.Mesh(new THREE.CircleGeometry(1,64),new THREE.MeshStandardMaterial({color:new THREE.Color("#5fe0f0").convertSRGBToLinear(),roughness:.1,metalness:.2,transparent:true,opacity:.75})));lag.scale.set(ax*SU.qIn,ay*SU.qIn,1);lag.rotation.x=-Math.PI/2;lag.position.set(cx,-12,cy);
+  // sand + rock: ellipse ring and the island, extruded so the sides look like cliffs
+  const sandTex=canvasTex(256,256,(g,w,h)=>{g.fillStyle="#f0d39a";g.fillRect(0,0,w,h);for(let i=0;i<1600;i++){g.fillStyle=`rgba(${Math.random()<.5?"190,150,90":"255,240,200"},${Math.random()*.35})`;g.fillRect(Math.random()*w,Math.random()*h,2,2);}});
+  sandTex.wrapS=sandTex.wrapT=THREE.RepeatWrapping;sandTex.repeat.set(1/260,1/260);
+  const sandM=new THREE.MeshStandardMaterial({map:sandTex,roughness:.95,color:new THREE.Color("#f2c27a").convertSRGBToLinear()}),rockM=T("#9a9184",{roughness:.95}),grassM=T("#4fb548",{roughness:.9});
+  const ell=(path,q,ccw)=>{const n=96;for(let i=0;i<=n;i++){const a=(ccw?-1:1)*i/n*Math.PI*2,x=cx+Math.cos(a)*ax*q,y=cy+Math.sin(a)*ay*q;i?path.lineTo(x,-y):path.moveTo(x,-y);}};
+  const ring=new THREE.Shape();ell(ring,SU.qOut+.012,false);const hole=new THREE.Path();ell(hole,SU.qIn,true);ring.holes.push(hole);
+  const mk=(shape,depth,y)=>{const m=add(new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:false,curveSegments:1}),[sandM,rockM]),true);m.rotation.x=-Math.PI/2;m.position.y=y-depth;return m;};
+  mk(ring,40,0);
+  const isl=new THREE.Shape();ell(isl,SU.qIs,false);mk(isl,40,0);
+  // tyre tracks on the sand
+  const trk=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.07,depthWrite:false});
+  for(const q of [.72,.82]){const r=add(new THREE.Mesh(new THREE.RingGeometry(q-.006,q+.006,96),trk));r.scale.set(ax,ay,1);r.rotation.x=-Math.PI/2;r.position.set(cx,.6,cy);}
+  // inner edge: hedges with flowers + palms
+  const flowerC=["#ff5a6e","#ffd23a","#ff8a3d","#ffffff","#ff7cc8"].map(c=>T(c,{roughness:.6}));
+  const palm=(x,z,s)=>{s=s||1;const tr=add(new THREE.Mesh(new THREE.CylinderGeometry(4*s,6*s,70*s,7),T("#a8763f",{roughness:.9})),true);tr.position.set(x,35*s,z);tr.rotation.z=.12;
+    for(let k=0;k<7;k++){const lf=add(new THREE.Mesh(new THREE.SphereGeometry(1,8,6),leafM[k%2]),true);const a=k/7*Math.PI*2;lf.scale.set(34*s,4*s,10*s);lf.position.set(x+Math.cos(a)*24*s+4,70*s,z+Math.sin(a)*24*s);lf.rotation.y=-a;lf.rotation.z=-.35;}};
+  for(let i=0;i<64;i++){const a=i/64*Math.PI*2,[x,y]=summerPt(SU.qIn+.025,a);if(Math.abs(y-cy)<SU.bw+40||Math.abs(x-cx)<SU.bw+40)continue;
+    const b=add(new THREE.Mesh(new THREE.SphereGeometry(30,10,8),grassM),true);b.scale.set(1,.6,1);b.position.set(x,6,y);
+    for(let k=0;k<3;k++){const f=add(new THREE.Mesh(new THREE.SphereGeometry(5,6,5),flowerC[(i+k)%5]));f.position.set(x+(Math.random()-.5)*36,20,y+(Math.random()-.5)*36);}
+    if(i%5===0)palm(x,y,1.1);}
+  // outer fence
+  const postM=T("#8a5a32",{roughness:.85});
+  for(let i=0;i<120;i++){const a=i/120*Math.PI*2,[x,y]=summerPt(SU.qOut,a);const po=add(new THREE.Mesh(new THREE.CylinderGeometry(3,3,30,6),postM),true);po.position.set(x,15,y);
+    const [x2,y2]=summerPt(SU.qOut,(i+1)/120*Math.PI*2),len=Math.hypot(x2-x,y2-y);for(const h of [12,24]){const rl=add(new THREE.Mesh(new THREE.BoxGeometry(len,2.4,2.4),postM));rl.position.set((x+x2)/2,h,(y+y2)/2);rl.rotation.y=-Math.atan2(y2-y,x2-x);}}
+  // rope bridges
+  const plankM=T("#b07a45",{roughness:.85});
+  const bridge=(x1,y1,x2,y2)=>{const len=Math.hypot(x2-x1,y2-y1),ang=-Math.atan2(y2-y1,x2-x1),g=new THREE.Group();g.position.set((x1+x2)/2,0,(y1+y2)/2);g.rotation.y=ang;CG.add(g);
+    for(let k=0;k<len/22;k++){const pl=new THREE.Mesh(new THREE.BoxGeometry(16,4,SU.bw*2),plankM);pl.position.set(-len/2+11+k*22,1,0);pl.receiveShadow=true;g.add(pl);}
+    for(const sd of [-1,1]){const rl=new THREE.Mesh(new THREE.BoxGeometry(len,3,3),postM);rl.position.set(0,22,sd*SU.bw);g.add(rl);
+      for(let k=0;k<=len/90;k++){const po=new THREE.Mesh(new THREE.CylinderGeometry(4,4,30,6),postM);po.position.set(-len/2+k*90,13,sd*SU.bw);po.castShadow=true;g.add(po);}}};
+  bridge(cx-ax*SU.qIn,cy,cx-ax*SU.qIs,cy);bridge(cx+ax*SU.qIs,cy,cx+ax*SU.qIn,cy);bridge(cx,cy-ay*SU.qIn,cx,cy-ay*SU.qIs);bridge(cx,cy+ay*SU.qIs,cx,cy+ay*SU.qIn);
+  // waterfalls down the inner cliffs
+  const fallM=new THREE.MeshBasicMaterial({color:0xe8fbff,transparent:true,opacity:.8,side:THREE.DoubleSide});
+  for(const a of [-.8,.8,Math.PI-.8,Math.PI+.8]){const [x,y]=summerPt(SU.qIn-.004,a),f=add(new THREE.Mesh(new THREE.PlaneGeometry(70,46),fallM));f.position.set(x,-10,y);f.lookAt(cx,-10,cy);
+    const foam=add(new THREE.Mesh(new THREE.CircleGeometry(40,16),fallM));foam.rotation.x=-Math.PI/2;foam.position.set(x+(cx-x)*.03,-11,y+(cy-y)*.03);}
+  // obstacles: crates, hut, palms
+  for(const p of PILLARS){if(p.kind==="hut"){const base=add(new THREE.Mesh(new THREE.CylinderGeometry(p.r*.8,p.r*.85,50,10),T("#c58a52",{roughness:.85})),true);base.position.set(p.x,25,p.y);
+      const roof=add(new THREE.Mesh(new THREE.ConeGeometry(p.r*1.25,60,10),T("#d8b06a",{roughness:.95})),true);roof.position.set(p.x,80,p.y);}
+    else if(p.kind==="palm")palm(p.x,p.y,1.3);
+    else{const c=add(new THREE.Mesh(new THREE.BoxGeometry(p.r*1.5,p.r*1.5,p.r*1.5),crateM),true);c.position.set(p.x,p.r*.75,p.y);c.rotation.y=.3;
+      const e=add(new THREE.Mesh(new THREE.BoxGeometry(p.r*1.56,p.r*.22,p.r*1.56),crateEdgeM));e.position.set(p.x,p.r*.75,p.y);e.rotation.y=.3;}}
+  // parasols on the island and beside the track
+  const umb=(x,z,c1)=>{const pl=add(new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,48,6),T("#ffffff")),true);pl.position.set(x,24,z);
+    for(let k=0;k<8;k++){const seg=add(new THREE.Mesh(new THREE.ConeGeometry(30,14,3,1,true,k*Math.PI/4,Math.PI/4),T(k%2?"#ffffff":c1,{side:THREE.DoubleSide})),true);seg.position.set(x,50,z);}};
+  [[cx-160,cy+110,"#e8443a"],[cx+170,cy-90,"#2f6fe0"],[cx+120,cy+140,"#ffd23a"]].forEach(([x,z,c])=>umb(x,z,c));
+  for(let i=0;i<14;i++){const a=i/14*Math.PI*2+.2,[x,y]=summerPt(SU.qOut+.05,a);umb(x,y,["#e8443a","#2f6fe0","#ffd23a"][i%3]);}
+  // outside: piers, floats, distant islands, palms
+  for(const a of [.5,2.3,3.9,5.4]){const [x,y]=summerPt(SU.qOut+.02,a),[x2,y2]=summerPt(1.25,a);const len=Math.hypot(x2-x,y2-y),pier=add(new THREE.Mesh(new THREE.BoxGeometry(len,6,70),plankM),true);
+    pier.position.set((x+x2)/2,-4,(y+y2)/2);pier.rotation.y=-Math.atan2(y2-y,x2-x);}
+  const tubeC=["#ff5a6e","#ffd23a","#c070ff","#3fd0c8"];for(let i=0;i<10;i++){const [x,y]=summerPt(1.05+Math.random()*.25,Math.random()*7);const tb=add(new THREE.Mesh(new THREE.TorusGeometry(16,6,8,16),T(tubeC[i%4])));tb.rotation.x=Math.PI/2;tb.position.set(x,-12,y);tb.userData.bob=Math.random()*6;}
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2,[x,y]=summerPt(1.55+Math.random()*.2,a);const isl2=add(new THREE.Mesh(new THREE.SphereGeometry(1,16,10),T("#e9cf92")));isl2.scale.set(220,40,160);isl2.position.set(x,-20,y);palm(x,y,1.6);palm(x+80,y+40,1.3);}
+}
 const COURSES={
   arena:{name:"バルーンアリーナ",icon:"🏟️",W:4500,H:2800,
     pillars:[{x:2250,y:1400,r:85},{x:1209,y:812,r:52},{x:3291,y:812,r:52},{x:1209,y:1988,r:52},{x:3291,y:1988,r:52},
@@ -939,15 +1013,29 @@ const COURSES={
     boxes:PQ.flatMap(q=>[[330,480],[860,482],[1500,681]].map(([x,y])=>pxf(x,y,q))),
     dash:[{x:117,y:1650,a:0},{x:5283,y:1650,a:Math.PI},{x:2700,y:120,a:0},{x:2700,y:3180,a:Math.PI}],
     spawns:[[220,330],[5180,330],[220,2970],[5180,2970],[1350,90],[4050,3210],[110,1100],[5290,2200]],
-    build:buildPark}
+    build:buildPark},
+  summer:{name:"サマーアイランド",icon:"🏝️",W:SU.W,H:SU.H,solid:summerSolid,
+    pillars:[{x:SU.W/2,y:SU.H/2,r:70,kind:"hut"},
+      ...[[2160,-1],[2640,-1],[2160,1],[2640,1]].map(([x,s])=>({x,y:SU.H/2+s*SU.H/2*.77,r:30})),
+      ...[[.35],[1.2],[1.95],[2.75],[3.55],[4.35],[5.1],[5.9]].map(([a])=>{const [x,y]=summerPt(.86,a);return{x,y,r:24};}),
+      ...[[.75],[2.4],[3.9],[5.5]].map(([a])=>{const [x,y]=summerPt(.18,a);return{x,y,r:16,kind:"palm"};})],
+    boxes:[...[0,.5,1,1.55,2.1,2.6,3.14,3.65,4.2,4.75,5.25,5.75].map(a=>summerPt(.77,a+.26)),[SU.W/2-260,SU.H/2],[SU.W/2+260,SU.H/2],[SU.W/2,SU.H/2-190],[SU.W/2,SU.H/2+190]],
+    dash:[{x:SU.W/2,y:SU.H/2-SU.H/2*.77,a:Math.PI},{x:SU.W/2,y:SU.H/2+SU.H/2*.77,a:0},{x:SU.W/2-SU.W/2*.77,y:SU.H/2,a:-Math.PI/2},{x:SU.W/2+SU.W/2*.77,y:SU.H/2,a:Math.PI/2}],
+    spawns:[0,1,2,3,4,5,6,7].map(i=>summerPt(.77,i/8*Math.PI*2+.39)),
+    testBoxes:keys=>keys.map((k,i)=>summerPt(i%2?.72:.82,.39+.16+Math.floor(i/2)*.09+(i%2)*.045)),
+    build:buildSummer,tick:t=>{if(summerWater){summerWater.offset.x=(t/60000)%1;summerWater.offset.y=(t/90000)%1;}}}
 };
 let loadedCourse=null;
+let miniBg=null;
+function buildMiniBg(){if(!SOLID){miniBg=null;return;}const c=document.createElement("canvas");c.width=130;c.height=Math.round(130*H/W);const g=c.getContext("2d"),id=g.createImageData(c.width,c.height);
+  for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++){const i=(y*c.width+x)*4,sol=SOLID((x+.5)/c.width*W,(y+.5)/c.height*H);id.data[i]=sol?40:226;id.data[i+1]=sol?140:196;id.data[i+2]=sol?220:130;id.data[i+3]=sol?150:120;}
+  g.putImageData(id,0,0);miniBg=c;}
 function loadCourse(id){
   const c=COURSES[id]||COURSES.arena;if(loadedCourse===c)return;
   scene.remove(CG);CG.traverse(n=>{if(n.geometry)n.geometry.dispose();if(n.material){(Array.isArray(n.material)?n.material:[n.material]).forEach(m=>{if(!COURSE_KEEP.has(m)&&!(typeof SHARED!=="undefined"&&SHARED.has(m))){if(m.map&&m.map!==dashTex&&m.map!==boxTex)m.map.dispose();m.dispose();}});}});
   CG=new THREE.Group();scene.add(CG);boards=null;
-  W=c.W;H=c.H;WALLS=c.walls||[];PILLARS=c.pillars.map(p=>Object.assign({},p));BOXES=c.boxes.map(([x,y])=>({x,y,on:true,back:0}));DASH=c.dash;SPAWNS=c.spawns;
-  c.build();addClouds();dashPanels();itemBoxes();
+  W=c.W;H=c.H;WALLS=c.walls||[];SOLID=c.solid||null;PILLARS=c.pillars.map(p=>Object.assign({},p));BOXES=c.boxes.map(([x,y])=>({x,y,on:true,back:0}));DASH=c.dash;SPAWNS=c.spawns;
+  c.build();addClouds();dashPanels();itemBoxes();buildMiniBg();
   {const S=Math.max(W/1600,H/1000);sky.position.set(W/2,0,H/2);sky.scale.setScalar(Math.max(1,S*1.1));scene.fog.far=3600*S;scene.fog.near=1300*S;}
   sun.position.set(W/2-500,1100,H/2+600);sun.target.position.set(W/2,0,H/2);
   const half=1500;Object.assign(sun.shadow.camera,{left:-half,right:half,top:half,bottom:-half});sun.shadow.camera.updateProjectionMatrix();
@@ -1346,7 +1434,7 @@ function dust(x,z,col){const m=new THREE.Mesh(partGeo,col?new THREE.MeshBasicMat
 // minimap
 const mini=$("mini"),mctx=mini.getContext("2d");
 function drawMini(ents){const w=mini.width,h=mini.height,k=w/W;if(Math.abs(h-Math.round(w*H/W))>1){mini.height=Math.round(w*H/W);}mctx.clearRect(0,0,w,h);mctx.fillStyle="rgba(27,22,64,.75)";mctx.fillRect(0,0,w,h);
-  mctx.fillStyle="#3f8a4a";for(const w of WALLS)mctx.fillRect(w[0]*k,w[1]*k,(w[2]-w[0])*k,(w[3]-w[1])*k);mctx.fillStyle="#3a3470";for(const p of PILLARS){if(p.hidden)continue;mctx.beginPath();mctx.arc(p.x*k,p.y*k,p.r*k,0,Math.PI*2);mctx.fill();}
+  if(miniBg)mctx.drawImage(miniBg,0,0,w,h);mctx.fillStyle="#3f8a4a";for(const w of WALLS)mctx.fillRect(w[0]*k,w[1]*k,(w[2]-w[0])*k,(w[3]-w[1])*k);mctx.fillStyle="#3a3470";for(const p of PILLARS){if(p.hidden)continue;mctx.beginPath();mctx.arc(p.x*k,p.y*k,p.r*k,0,Math.PI*2);mctx.fill();}
   mctx.fillStyle="#ff8a3d";for(const d of DASH)mctx.fillRect(d.x*k-3,d.y*k-3,6,6);
   for(const e of ents){if(e.b<=0)continue;mctx.fillStyle=e.color;mctx.beginPath();mctx.arc(e.rx*k,e.ry*k,e===me?4.5:3.5,0,Math.PI*2);mctx.fill();
     if(e===me){mctx.strokeStyle="#fff";mctx.lineWidth=1.5;mctx.stroke();mctx.beginPath();mctx.moveTo(e.rx*k,e.ry*k);mctx.lineTo(e.rx*k+Math.cos(e.ra)*9,e.ry*k+Math.sin(e.ra)*9);mctx.stroke();}}}
@@ -1356,7 +1444,7 @@ let last=now(),camInit=false,camRoll=0;const camPos=new THREE.Vector3(),camLook=
 function frame(){
   const t=now(),dt=Math.min(.05,(t-last)/1000);last=t;
   for(const bx of BOXES){if(!bx.on&&t>bx.back)bx.on=true;{const hid=me&&phase==="play"&&pouchBlocked(me,t);bx.mesh.visible=bx.sh.visible=bx.on&&!hid;if(bx.label)bx.label.visible=bx.on&&!hid;}bx.mesh.rotation.y=t/700;bx.mesh.rotation.x=t/1100;bx.mesh.position.y=26+Math.sin(t/400+bx.x)*4;}
-  dashTex.offset.x=-(t/400)%1;
+  dashTex.offset.x=-(t/400)%1;if(loadedCourse&&loadedCourse.tick)loadedCourse.tick(t);
   for(const p of PILLARS)if(p.star){p.star.rotation.y=t/600;}
   const playing=me&&(phase==="play"||phase==="cd"||phase==="over");
   if(playing){
