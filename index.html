@@ -100,7 +100,9 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
   display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;gap:10px 14px;align-items:end;pointer-events:none}
 .pbtn{pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;border:0;border-radius:50%;font-family:var(--display);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;cursor:pointer;-webkit-user-select:none;user-select:none}
 #itemBtn{grid-column:2;grid-row:1/3;width:104px;height:104px;background:var(--pop);color:#fff;font-size:.95rem;box-shadow:0 6px 0 #c42c55,0 0 0 5px rgba(255,255,255,.3)}
-#itemBtn b{font-size:1.9rem}
+#itemBtn b{font-size:1.9rem;line-height:1;display:flex;align-items:center;justify-content:center;height:46px}
+#itemBtn b img{width:52px;height:52px;display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
+#stock div img{width:84%;height:84%;display:block}
 #stock{position:absolute;right:20px;bottom:calc(100% + 10px);display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none}
 #stock div{width:50px;height:50px;border-radius:50%;background:rgba(255,248,239,.94);border:3px solid var(--pop);display:flex;align-items:center;justify-content:center;position:relative;font-size:1.5rem;box-shadow:0 3px 0 rgba(0,0,0,.25)}
 #stock div+div{width:42px;height:42px;font-size:1.2rem;opacity:.85}
@@ -1039,6 +1041,46 @@ function buildStarShot(){const g=new THREE.Group();const m=new THREE.Mesh(new TH
 function buildSpike(color){const g=new THREE.Group(),m=T(color,{emissive:new THREE.Color(color).multiplyScalar(.3)});const core=new THREE.Mesh(spikeGeo,m);core.castShadow=true;g.add(core);
   const dirs=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];for(const d of dirs){const tip=new THREE.Mesh(spikeTip,whiteM);tip.position.set(d[0]*10,d[1]*10,d[2]*10);tip.lookAt(d[0]*20,d[1]*20,d[2]*20);tip.rotateX(Math.PI/2);g.add(tip);}
   scene.add(g);return g;}
+// ---------- item icons: the real 3D models rendered into small pictures ----------
+const iconCache={};let iconR=null,iconScene=null,iconCam=null;
+function iconModel(k,color){
+  const take=g=>{scene.remove(g);return g;};
+  if(k==="spike")return take(buildSpike(color));
+  if(k==="acorn")return take(buildAcorn());
+  if(k==="homing"){const g=take(buildHoming());g.children.filter(c=>c.isSprite).forEach(c=>g.remove(c));return g;}
+  if(k==="starshot")return take(buildStarShot());
+  const g=new THREE.Group();
+  if(k==="bubble"){const b=new THREE.Mesh(new THREE.SphereGeometry(13,24,16),new THREE.MeshStandardMaterial({color:0x3fb4ff,transparent:true,opacity:.8,roughness:.05,metalness:.2,emissive:0x1f7fd0,emissiveIntensity:.45}));g.add(b);
+    const h=new THREE.Mesh(new THREE.SphereGeometry(3.4,12,8),new THREE.MeshBasicMaterial({color:0xffffff}));h.position.set(-5,6,8);h.scale.set(1,1.4,.6);g.add(h);}
+  if(k==="ink"){const m=new THREE.MeshStandardMaterial({color:0x1d1430,roughness:.35,metalness:.1});
+    [[0,0,0,10],[-9,-2,1,7],[9,-1,1,7.5],[-4,7,2,6.5],[5,6,2,6]].forEach(([x,y,z,r])=>{const b=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);b.position.set(x,y,z);g.add(b);});
+    for(const sd of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(2.2,10,8),new THREE.MeshBasicMaterial({color:0xffffff}));e.position.set(sd*3.6,1.5,9.2);g.add(e);}}
+  if(k==="mirror"){const fr=new THREE.MeshStandardMaterial({color:0xb36cff,roughness:.25,metalness:.6});
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(9,2.2,12,28),fr);ring.position.y=4;g.add(ring);
+    const gl=new THREE.Mesh(new THREE.CircleGeometry(9,28),new THREE.MeshStandardMaterial({color:0xd8f2ff,roughness:.05,metalness:.9,emissive:0x4a3a7a,emissiveIntensity:.4}));gl.position.set(0,4,.4);g.add(gl);
+    const hd=new THREE.Mesh(new THREE.CylinderGeometry(2,2.4,12,10),fr);hd.position.y=-11;g.add(hd);g.rotation.z=-.35;}
+  if(k==="star"){const sh=new THREE.Shape();for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,r=i%2?6:14;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
+    const st=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:5,bevelEnabled:true,bevelThickness:2,bevelSize:1.6,bevelSegments:2}),new THREE.MeshStandardMaterial({color:0xffd23a,emissive:0x8a6a00,roughness:.3,metalness:.4}));
+    st.position.z=-2.5;g.add(st);for(const sd of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(1.4,8,6),new THREE.MeshBasicMaterial({color:0x2a1a0a}));e.position.set(sd*3,2,5.4);e.scale.set(.7,1.3,1);g.add(e);}}
+  return g;
+}
+function itemIcon(k,color){
+  const key=k+"|"+(k==="spike"?color:"");if(iconCache[key])return iconCache[key];
+  try{
+    if(!iconR){const c=document.createElement("canvas");c.width=c.height=128;iconR=new THREE.WebGLRenderer({canvas:c,alpha:true,antialias:true,preserveDrawingBuffer:true});
+      iconR.outputEncoding=THREE.sRGBEncoding;iconR.setClearColor(0x000000,0);iconScene=new THREE.Scene();
+      iconScene.add(new THREE.HemisphereLight(0xffffff,0x8a7fa8,1.1));const d=new THREE.DirectionalLight(0xffffff,1.3);d.position.set(30,50,60);iconScene.add(d);
+      iconCam=new THREE.PerspectiveCamera(32,1,1,500);iconCam.position.set(0,10,58);iconCam.lookAt(0,0,0);}
+    const m=iconModel(k,color);m.position.set(0,0,0);
+    const box=new THREE.Box3().setFromObject(m),sz=box.getSize(new THREE.Vector3()),ct=box.getCenter(new THREE.Vector3());
+    m.position.sub(ct);m.scale.multiplyScalar(30/Math.max(sz.x,sz.y,sz.z,1));m.position.multiplyScalar(30/Math.max(sz.x,sz.y,sz.z,1));
+    if(k==="spike"||k==="homing"||k==="starshot")m.rotation.set(.35,.6,0);if(k==="acorn")m.rotation.set(.15,.4,-.2);
+    iconScene.add(m);iconR.render(iconScene,iconCam);const url=iconR.domElement.toDataURL("image/png");iconScene.remove(m);
+    m.traverse(n=>{if(n.geometry&&![spikeGeo,spikeTip,acornGeo,capGeo,stemGeo,homGeo,ringGeo].includes(n.geometry))n.geometry.dispose();if(n.material&&!SHARED.has(n.material)&&n.material!==flameMatO)n.material.dispose();});
+    return iconCache[key]=url;
+  }catch(e){return null;}
+}
+function iconHTML(k){const u=me&&ITEMS[k]?itemIcon(k,me.color):null;return u?`<img src="${u}" alt="${ITEMS[k].name}">`:(ITEMS[k]?ITEMS[k].icon:"・");}
 // particles
 const parts=[];const partGeo=new THREE.SphereGeometry(3,6,4);const dustMat=new THREE.MeshBasicMaterial({color:"#fff8ef",transparent:true,opacity:.8});
 function popFx(x,z,color,y){const mat=new THREE.MeshBasicMaterial({color});for(let i=0;i<16;i++){const m=new THREE.Mesh(partGeo,mat);m.position.set(x,y||58,z);scene.add(m);
@@ -1132,8 +1174,8 @@ function frame(){
     const rem=phase==="play"?Math.max(0,endAt-t):ROUND_MS,s=Math.ceil(rem/1000);$("timer").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
     const it=me.item,ic=!it?"・":(ITEMS[it.k]?ITEMS[it.k].icon:"・");
     $("slot").classList.toggle("empty",!it);$("slotIc").textContent=ic;$("slotN").textContent=it&&it.n>1?"×"+it.n:"";
-    {const st=me.stock||[],key=st.map(x=>x.k+x.n).join(",");const box=$("stock");if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map(x=>`<div>${ITEMS[x.k]?ITEMS[x.k].icon:"?"}${x.n>1?"<i>×"+x.n+"</i>":""}</div>`).join("");}}
-    iB.classList.toggle("empty",!it);$("btnIc").textContent=ic;$("btnN").textContent=it&&it.n>1?"×"+it.n:"";$("btnName").textContent=it&&ITEMS[it.k]?ITEMS[it.k].name:"アイテム";
+    {const st=me.stock||[],key=st.map(x=>x.k+x.n).join(",");const box=$("stock");if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map(x=>`<div>${iconHTML(x.k)}${x.n>1?"<i>×"+x.n+"</i>":""}</div>`).join("");}}
+    iB.classList.toggle("empty",!it);{const bk=it?it.k+me.color:"",bi=$("btnIc");if(bi.dataset.k!==bk){bi.dataset.k=bk;bi.innerHTML=it?iconHTML(it.k):"・";}}$("btnN").textContent=it&&it.n>1?"×"+it.n:"";$("btnName").textContent=it&&ITEMS[it.k]?ITEMS[it.k].name:"アイテム";
     $("ink").classList.toggle("on",t<inkUntil);$("mirrorFx").classList.toggle("on",t<(me.mirrorUntil||0));
     {const A=ART[me.skin]||ART.dog,f=({penguin:[0,1,4,3,2]}[me.skin]||[0,1,2,3,4])[me.b<=0||t<me.inv?2:me.drifting?3:t<me.boost?4:t-(me.lastThrow||-1e9)<700?1:0],key=(me.skin||"dog")+f,fi=$("faceImg");if(fi.dataset.f!==key){fi.dataset.f=key;fi.dataset.fbTried="";fi.src=A["f"+f];}}
     const lv=me.drifting?driftLevel(me.driftT):0;dB.classList.toggle("l1",lv===1);dB.classList.toggle("l2",lv===2);dB.classList.toggle("l3",lv===3);
