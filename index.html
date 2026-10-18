@@ -201,6 +201,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div class="field"><label for="nameIn">なまえ</label><input id="nameIn" maxlength="10" placeholder="例：ダイキ" autocomplete="off"></div>
     <div class="field"><label>キャラクター</label><div class="chars" id="chars"></div><p class="note" id="specNote"></p></div>
     <div class="field"><label>コース</label><div class="courses" id="courses"></div></div>
+    <div class="field"><label>CPUレベル（CPU練習用）</label><div class="courses" id="cpuLv"></div></div>
     <div class="field"><label>風船の色</label><div class="colors" id="colors"></div></div>
     <div class="field"><label for="passIn">合言葉</label><input id="passIn" maxlength="24" placeholder="例：たこやき" autocomplete="off"></div>
     <button class="btn" id="joinBtn" type="button">合言葉でルームに入る</button>
@@ -427,7 +428,7 @@ function drive(e,steer,dHeld,dt,t,go){
   if(e.star&&t>=e.star&&e.starStock&&e.starStock.length)endStar(e);
   if(!e.item&&e.stock&&e.stock.length&&!(e.star&&t<e.star))e.item=e.stock.shift();
   if(t<(e.mirrorUntil||0))steer=-steer;
-  const boosting=t<e.boost,max=(boosting?VBOOST:VMAX)*(t<(e.star||0)?STAR_SPEED:1)*(t<(e.dashUntil||0)?DASH_SPEED:1)*(t<(e.bearRage||0)?RAGE_SPEED:1);
+  const boosting=t<e.boost,max=(boosting?VBOOST:VMAX)*(t<(e.star||0)?STAR_SPEED:1)*(t<(e.dashUntil||0)?DASH_SPEED:1)*(t<(e.bearRage||0)?RAGE_SPEED:1)*(e.lv?CPU_LV[e.lv].spd:1);
   if(e.b<=0){e.v*=Math.pow(.05,dt);e.drifting=false;}
   else if(t<(e.frozenUntil||0)){e.v*=Math.pow(.002,dt);e.drifting=false;e.driftT=0;}
   else if(t<e.spin){e.a+=11*dt;e.v*=Math.pow(.1,dt);e.drifting=false;e.driftT=0;}
@@ -527,13 +528,21 @@ function resolveHits(L,t){
 }
 
 // ---------- bots ----------
+// CPU strength 1..5 (3 = original behaviour). spd: top speed, wob: steering wobble, gain: steering sharpness,
+// tol: aim window before firing, cd: fire cooldown mult, lead: target prediction, spec: SPEC eagerness, range: shot range mult
+const CPU_LV={1:{name:"よわい",spd:.76,wob:.6,gain:1.3,tol:.45,cd:3,lead:0,spec:.25,range:.7},
+  2:{name:"ふつう",spd:.88,wob:.35,gain:1.7,tol:.28,cd:1.9,lead:.5,spec:.5,range:.85},
+  3:{name:"つよい",spd:1,wob:.15,gain:2.2,tol:.16,cd:1,lead:1,spec:1,range:1},
+  4:{name:"めっちゃ強い",spd:1.06,wob:.07,gain:2.6,tol:.12,cd:.7,lead:1.1,spec:1.6,range:1.15},
+  5:{name:"鬼",spd:1.12,wob:.02,gain:3,tol:.09,cd:.45,lead:1.2,spec:2.5,range:1.3}};
+let cpuLevel=3;try{const v=+localStorage.getItem("fk-lv");if(CPU_LV[v])cpuLevel=v;}catch(e){}
 function botThink(b,t,dt){
-  if(b.b<=0)return[0,false];
+  if(b.b<=0)return[0,false];const L=CPU_LV[b.lv||3];
   let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
   let gx=W/2,gy=H/2;
   if(b.clone){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){for(let k=0;k<20;k++){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];if(!solidAt(b.wp[0],b.wp[1]))break;}b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
   else if(!b.item){let bd=1e9;for(const bx of BOXES)if(bx.on){const d=Math.hypot(bx.x-b.x,bx.y-b.y);if(d<bd){bd=d;gx=bx.x;gy=bx.y;}}}
-  else if(tgt){const lead=td/540;gx=tgt.x+Math.cos(tgt.a)*tgt.v*lead;gy=tgt.y+Math.sin(tgt.a)*tgt.v*lead;}
+  else if(tgt){const lead=td/540*L.lead;gx=tgt.x+Math.cos(tgt.a)*tgt.v*lead;gy=tgt.y+Math.sin(tgt.a)*tgt.v*lead;}
   let dx=gx-b.x,dy=gy-b.y;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
   for(const p of PILLARS){const px=p.x-b.x,py=p.y-b.y,d=Math.hypot(px,py);if(d<p.r+95){const side=(px*dy-py*dx)>0?-1:1;dx+=-py/d*side*1.4;dy+=px/d*side*1.4;}}
   {const pr={x:b.x+Math.cos(b.a)*85,y:b.y+Math.sin(b.a)*85};for(const w of WALLS){const n=pushOutRect(pr,30,w);if(n){const side=(n[0]*dy-n[1]*dx)>0?1:-1;dx+=n[0]*1.6-n[1]*side*1.2;dy+=n[1]*1.6+n[0]*side*1.2;}}}
@@ -542,9 +551,9 @@ function botThink(b,t,dt){
   const ex=b.x+Math.cos(b.a)*70,ey=b.y+Math.sin(b.a)*70;if(ex<60||ex>W-60||ey<60||ey>H-60){dx+=(W/2-b.x)/(W/2);dy+=(H/2-b.y)/(H/2);}
   b.fireCd-=dt;
   if(tgt&&b.item&&b.fireCd<=0&&t>(b.inkUntil||0)){const k=b.item.k,want=Math.atan2(tgt.y-b.y,tgt.x-b.x),df=Math.abs(angDiff(want,b.a));
-    if(k==="spike"||k==="starshot"){if(td<560&&df<.16&&losClear(b.x,b.y,tgt.x,tgt.y)){useItem(b,t,false);b.fireCd=1+Math.random()*1.5;}else if(td<200&&df>2.7){useItem(b,t,true);b.fireCd=1.5;}}
-    else if(k==="homing"){if(td<700&&losClear(b.x,b.y,tgt.x,tgt.y)){useItem(b,t,false);b.fireCd=1.5;}}
-    else if(k==="acorn"){if((td<260&&df>2.2)||Math.random()<dt*.25){useItem(b,t,true);b.fireCd=1.2;}}
+    if(k==="spike"||k==="starshot"){if(td<560*L.range&&df<L.tol&&losClear(b.x,b.y,tgt.x,tgt.y)){useItem(b,t,false);b.fireCd=(1+Math.random()*1.5)*L.cd;}else if(td<200&&df>2.7){useItem(b,t,true);b.fireCd=1.5*L.cd;}}
+    else if(k==="homing"){if(td<700*L.range&&losClear(b.x,b.y,tgt.x,tgt.y)){useItem(b,t,false);b.fireCd=1.5*L.cd;}}
+    else if(k==="acorn"){if((td<260*L.range&&df>2.2)||Math.random()<dt*.25){useItem(b,t,true);b.fireCd=1.2*L.cd;}}
     else if(k==="magnet"){if(td<320){useItem(b,t,false);b.fireCd=2;}}
     else if(k==="spring"){let danger=false;for(const o of allEnts()){if(o===b)continue;for(const p of o.pj){if((ITEMS[p.k]||{}).hit==="pop"&&Math.hypot(p.x-b.x,p.y-b.y)<130)danger=true;}}if(danger||Math.random()<dt*.15){useItem(b,t,false);b.fireCd=1;}}
     else if(k==='star'){if((b.stock||[]).length>=2||Math.random()<dt*.12){useItem(b,t,false);b.fireCd=1;}}
@@ -554,12 +563,12 @@ function botThink(b,t,dt){
     if(ITEMS[k].trap)useStarSlot(b,i,t,true);else if(ITEMS[k].use){if(Math.random()<dt*1.5)useStarSlot(b,i,t,false);}else{const want=Math.atan2(tgt.y-b.y,tgt.x-b.x);if(Math.abs(angDiff(want,b.a))<.3||k==="homing")useStarSlot(b,i,t,false);}}}
   if(!b.clone&&tgt){
     if(b.bearRage>t){if(td<750&&t>=(b.bearCd||0))useSpec(b,t);}
-    else if(!b.spUsed&&t-phaseAt>6000&&Math.random()<dt*.5){const k=b.skin;let go=false;
+    else if(!b.spUsed&&t-phaseAt>6000&&Math.random()<dt*.5*L.spec){const k=b.skin;let go=false;
       if(k==="dog")go=itemCount(b,t)>=2;else if(k==="lion")go=starHolders(b).length>0;else if(k==="penguin")go=td<ICE_R*.9;
       else if(k==="squirrel")go=td<260||Math.random()<.05;else if(k==="cat")go=Math.random()<.08;else go=Math.random()<.06;
       if(go)useSpec(b,t);}}
-  const want=Math.atan2(dy,dx)+Math.sin(t/800+b.seed)*.15;
-  const steer=clamp(angDiff(want,b.a)*2.2,-1,1);
+  const want=Math.atan2(dy,dx)+Math.sin(t/800+b.seed)*L.wob;
+  const steer=clamp(angDiff(want,b.a)*L.gain,-1,1);
   if(!b.dHold&&Math.abs(steer)>.6&&Math.random()<dt*1.4){b.dHold=true;b.dRelease=t+900+Math.random()*2600;}
   if(b.dHold&&(t>b.dRelease||(b.drifting&&Math.sign(steer)!==b.dsign&&Math.abs(steer)>.5)))b.dHold=false;
   return[steer,b.dHold];
@@ -720,7 +729,7 @@ function startSolo(){
   savePrefs();mode="solo";leaveOnline();
   me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;
   const pal=COLORS.filter(c=>c!==myColor);
-  bots=CPU_NAMES.map((n,i)=>makeEnt("cpu"+i,n,pal[(i*2)%pal.length],true,true));{const others=Object.keys(CHARS).filter(k=>k!==myChar);bots.forEach((b,i)=>b.skin=others[i%others.length]);}
+  bots=CPU_NAMES.map((n,i)=>makeEnt("cpu"+i,n,pal[(i*2)%pal.length],true,true));{const others=Object.keys(CHARS).filter(k=>k!==myChar);bots.forEach((b,i)=>{b.skin=others[i%others.length];b.lv=cpuLevel;});}
   round=1;beginRound(1,pickedCourse);
 }
 function startTest(v){
@@ -1552,6 +1561,8 @@ function frame(){
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
+{const wrap=$("cpuLv");for(let i=1;i<=5;i++){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",i===cpuLevel);b.textContent="Lv"+i+" "+CPU_LV[i].name;
+  b.onclick=()=>{cpuLevel=i;try{localStorage.setItem("fk-lv",i)}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));};wrap.appendChild(b);}}
 let pickedCourse="arena";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])pickedCourse=s.co;}catch(e){}
 {const wrap=$("courses");for(const k in COURSES){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",k===pickedCourse);b.textContent=COURSES[k].icon+" "+COURSES[k].name;
