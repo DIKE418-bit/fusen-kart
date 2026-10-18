@@ -117,9 +117,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 #spd{grid-column:1;grid-row:3;font-family:var(--body);font-weight:900;font-size:.72rem;text-align:center;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);font-variant-numeric:tabular-nums}
 #itemBtn small{font-family:var(--body);font-weight:900;font-size:.68rem;line-height:1.15;max-width:92px;text-align:center}
 #itemBtn i{font-style:normal;font-family:var(--body);font-weight:900;font-size:.8rem}
-#ink{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .35s;
-  background:radial-gradient(circle at 30% 40%,#120c1e 0 15%,transparent 26%),radial-gradient(circle at 68% 34%,#120c1e 0 12%,transparent 22%),radial-gradient(circle at 52% 66%,#120c1e 0 18%,transparent 30%),radial-gradient(circle at 18% 72%,#120c1e 0 9%,transparent 17%),radial-gradient(circle at 84% 70%,#120c1e 0 10%,transparent 19%)}
-#ink.on{opacity:.93}
+#ink{position:fixed;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;opacity:0;display:block}
 #mirrorFx{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;transition:opacity .3s;box-shadow:inset 0 0 120px 30px rgba(168,85,247,.85);background:rgba(120,60,200,.12)}
 #mirrorFx.on{opacity:1}
 #banner{position:absolute;left:0;right:0;top:30%;text-align:center;font-family:var(--display);font-size:clamp(2.4rem,11vw,5rem);color:var(--sun);text-shadow:4px 4px 0 var(--pop),0 0 30px rgba(0,0,0,.5)}
@@ -154,7 +152,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 
 <canvas id="game" aria-label="3Dバトルアリーナ"></canvas>
 <div id="speed"></div>
-<div id="ink"></div>
+<canvas id="ink"></canvas>
 <div id="mirrorFx"></div>
 <canvas id="mini" width="130" height="82" hidden></canvas>
 
@@ -250,7 +248,7 @@ const ITEMS={
   acorn:{name:"ポップマイン",icon:"💥",n:2,w:25,hold:true,kind:"proj",trap:true,life:20000,bounce:false,hit:"pop",boom:true,r:14,mesh:()=>buildMine()},
   homing:{name:"ストーカーミサイル",icon:"🎯",n:1,w:12,hold:true,kind:"proj",speed:400,back:400,life:6000,bounce:true,die:true,lock:true,face:true,hit:"pop",step:(p,o,dt,t)=>homingStep(p,o,dt,t),mesh:()=>buildMissile()},
   bubble:{name:"バリバリバリア",icon:"🛡️",n:1,w:10,use:(e,t)=>{e.shield=1;e.shieldUntil=t+120000;if(e===me)flash("🛡️ バリバリバリア！（攻撃されなければ2分）",1600);}},
-  ink:{name:"インク雲",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;if(mode!=="online")localInk(e,t);}},
+  ink:{name:"お邪魔インク",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;if(mode!=="online")localInk(e,t);}},
   mirror:{name:"鏡の呪い",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(mode!=="online")localMirror(e,t);}},
   star:{name:"スター",icon:"🌟",n:1,w:2,use:(e,t)=>{e.star=t+15000;e.item={k:"starshot",n:3};if(e===me)flash("🌟 スター！15秒無敵＋弾が障害物をすり抜け");return "keep";}},
   starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:540,back:300,life:4000,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
@@ -268,7 +266,23 @@ function segHitsRect(x1,y1,x2,y2,w){let t0=0,t1=1;const dx=x2-x1,dy=y2-y1,P=[-dx
 function segHitsCircle(x1,y1,x2,y2,c){const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy||1,u=clamp(((c.x-x1)*dx+(c.y-y1)*dy)/l2,0,1);return Math.hypot(x1+u*dx-c.x,y1+u*dy-c.y)<c.r;}
 function losClear(x1,y1,x2,y2){for(const w of WALLS)if(segHitsRect(x1,y1,x2,y2,w))return false;for(const c of PILLARS)if(segHitsCircle(x1,y1,x2,y2,c))return false;return true;}
 let inkUntil=0;
-function showInk(){inkUntil=now()+3500;}
+// ---------- Ojama Ink: splats cover the screen for 3.5s; rubbing the screen wipes them away ----------
+const INK_MS=3500,INK_SCALE=.5;
+function showInk(){const c=$("ink"),w=Math.ceil(innerWidth*INK_SCALE),h=Math.ceil(innerHeight*INK_SCALE);c.width=w;c.height=h;const g=c.getContext("2d");
+  g.clearRect(0,0,w,h);g.globalCompositeOperation="source-over";
+  const splat=(x,y,r)=>{const gr=g.createRadialGradient(x,y,r*.2,x,y,r*1.05);gr.addColorStop(0,"#120820");gr.addColorStop(.8,"#1d0d33");gr.addColorStop(1,"rgba(90,30,150,.85)");g.fillStyle=gr;
+    g.beginPath();g.arc(x,y,r,0,7);g.fill();g.fillStyle="#170a29";
+    for(let k=0;k<14;k++){const a=Math.random()*7,d=r*(.9+Math.random()*.7),rr=r*(.1+Math.random()*.22);g.beginPath();g.arc(x+Math.cos(a)*d,y+Math.sin(a)*d,rr,0,7);g.fill();
+      if(Math.random()<.4){g.beginPath();g.moveTo(x+Math.cos(a)*r*.7,y+Math.sin(a)*r*.7);g.lineTo(x+Math.cos(a)*d,y+Math.sin(a)*d);g.lineWidth=rr*1.2;g.strokeStyle="#170a29";g.stroke();}}
+    for(let k=0;k<5;k++){const dx=x+(Math.random()-.5)*r*1.4,len=r*(.4+Math.random()*.9);g.beginPath();g.moveTo(dx,y);g.lineTo(dx,y+r*.6+len);g.lineWidth=r*.12;g.lineCap="round";g.stroke();g.beginPath();g.arc(dx,y+r*.6+len,r*.1,0,7);g.fill();}};
+  const m=Math.min(w,h);for(let k=0;k<9;k++)splat(w*(.12+Math.random()*.76),h*(.12+Math.random()*.7),m*(.13+Math.random()*.13));
+  splat(w*.5,h*.45,m*.28);
+  inkUntil=now()+INK_MS;if(navigator.vibrate)try{navigator.vibrate(40)}catch(e){}}
+function wipeInk(x,y){if(now()>=inkUntil)return;const c=$("ink"),g=c.getContext("2d"),r=Math.max(26,Math.min(innerWidth,innerHeight)*.09)*INK_SCALE,cx=x*INK_SCALE,cy=y*INK_SCALE;
+  g.globalCompositeOperation="destination-out";const gr=g.createRadialGradient(cx,cy,0,cx,cy,r);gr.addColorStop(0,"rgba(0,0,0,1)");gr.addColorStop(.6,"rgba(0,0,0,.85)");gr.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle=gr;g.beginPath();g.arc(cx,cy,r,0,7);g.fill();g.globalCompositeOperation="source-over";}
+addEventListener("pointermove",e=>{if(e.pointerType!=="mouse"||e.buttons)wipeInk(e.clientX,e.clientY);},{capture:true,passive:true});
+addEventListener("pointerdown",e=>wipeInk(e.clientX,e.clientY),{capture:true,passive:true});
 function localInk(src,t){if(mode==="test"){showInk();return;}for(const o of [me,...bots]){if(!o||o===src)continue;if(o===me)showInk();else o.inkUntil=t+3500;}}
 function nearestFoe(owner,x,y){let best=null,bd=1e9;for(const o of allEnts()){if(o.id===owner.id||o.b<=0)continue;const d=Math.hypot(o.x-x,o.y-y);if(d<bd){bd=d;best=o;}}return best;}
 function homingStep(p,owner,dt,t){if(t-p.t<180)return;let best=allEnts().find(o=>o.id===p.tg&&o.b>0);
@@ -1138,9 +1152,13 @@ function iconModel(k,color){
     const sh=new THREE.Shape();for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,r=i%2?3:7;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
     const st=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:2,bevelEnabled:false}),T("#ffd23a",{emissive:new THREE.Color("#6a4a00"),emissiveIntensity:.5}));st.position.z=6.5;g.add(st);
     const dome=new THREE.Mesh(new THREE.SphereGeometry(13.5,32,20),new THREE.MeshBasicMaterial({map:hexTex,transparent:true,opacity:.9,depthWrite:false,side:THREE.DoubleSide,toneMapped:false}));g.add(dome);}
-  if(k==="ink"){const m=new THREE.MeshStandardMaterial({color:0x1d1430,roughness:.35,metalness:.1});
-    [[0,0,0,10],[-9,-2,1,7],[9,-1,1,7.5],[-4,7,2,6.5],[5,6,2,6]].forEach(([x,y,z,r])=>{const b=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);b.position.set(x,y,z);g.add(b);});
-    for(const sd of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(2.2,10,8),new THREE.MeshBasicMaterial({color:0xffffff}));e.position.set(sd*3.6,1.5,9.2);g.add(e);}}
+  if(k==="ink"){const jar=new THREE.Mesh(new THREE.CylinderGeometry(10,11,15,28),T("#8a3cff",{roughness:.08,metalness:.1,transparent:true,opacity:.62}));g.add(jar);
+    const neck=new THREE.Mesh(new THREE.CylinderGeometry(8.4,9.6,2.4,28),T("#a970ff",{roughness:.1,transparent:true,opacity:.7}));neck.position.y=8.6;g.add(neck);
+    const lid=new THREE.Mesh(new THREE.CylinderGeometry(8.8,8.8,4.4,28),T("#1a1620",{roughness:.4,metalness:.3}));lid.position.y=11.8;g.add(lid);
+    const blobM=T("#120a1c",{roughness:.3});const blob=new THREE.Mesh(new THREE.SphereGeometry(7,20,14),blobM);blob.scale.set(1.15,.9,.75);blob.position.set(0,-1,3);g.add(blob);
+    [[-7,3],[7,2],[-5,-6],[6,-5],[0,6]].forEach(([x,y])=>{const b=new THREE.Mesh(new THREE.SphereGeometry(2.4,10,8),blobM);b.position.set(x,y,5.4);g.add(b);});
+    for(const sd of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(2.2,12,8,0,Math.PI*2,Math.PI*.42,Math.PI*.58),new THREE.MeshBasicMaterial({color:0xffffff}));e.position.set(sd*3,0,8.2);e.rotation.z=-.5*sd;e.scale.set(1,1,.6);g.add(e);}
+    g.rotation.x=.25;}
   if(k==="mirror"){const fr=new THREE.MeshStandardMaterial({color:0xb36cff,roughness:.25,metalness:.6});
     const ring=new THREE.Mesh(new THREE.TorusGeometry(9,2.2,12,28),fr);ring.position.y=4;g.add(ring);
     const gl=new THREE.Mesh(new THREE.CircleGeometry(9,28),new THREE.MeshStandardMaterial({color:0xd8f2ff,roughness:.05,metalness:.9,emissive:0x4a3a7a,emissiveIntensity:.4}));gl.position.set(0,4,.4);g.add(gl);
@@ -1263,7 +1281,7 @@ function frame(){
     $("slot").classList.toggle("empty",!it);$("slotIc").textContent=ic;$("slotN").textContent=it&&it.n>1?"×"+it.n:"";
     {const st=me.stock||[],key=st.map(x=>x.k+x.n).join(",");const box=$("stock");if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map(x=>`<div>${iconHTML(x.k)}${x.n>1?"<i>×"+x.n+"</i>":""}</div>`).join("");}}
     iB.classList.toggle("empty",!it);{const bk=it?it.k+me.color:"",bi=$("btnIc");if(bi.dataset.k!==bk){bi.dataset.k=bk;bi.innerHTML=it?iconHTML(it.k):"・";}}$("btnN").textContent=it&&it.n>1?"×"+it.n:"";$("btnName").textContent=it&&ITEMS[it.k]?ITEMS[it.k].name:"アイテム";
-    $("ink").classList.toggle("on",t<inkUntil);$("mirrorFx").classList.toggle("on",t<(me.mirrorUntil||0));
+    {const left=inkUntil-t,c=$("ink");c.style.opacity=left>0?String(Math.min(1,left/500)):"0";}$("mirrorFx").classList.toggle("on",t<(me.mirrorUntil||0));
     {const A=ART[me.skin]||ART.dog,f=({penguin:[0,1,4,3,2]}[me.skin]||[0,1,2,3,4])[me.b<=0||t<me.inv?2:me.drifting?3:t<me.boost?4:t-(me.lastThrow||-1e9)<700?1:0],key=(me.skin||"dog")+f,fi=$("faceImg");if(fi.dataset.f!==key){fi.dataset.f=key;fi.dataset.fbTried="";fi.src=A["f"+f];}}
     const lv=me.drifting?driftLevel(me.driftT):0;dB.classList.toggle("l1",lv===1);dB.classList.toggle("l2",lv===2);dB.classList.toggle("l3",lv===3);
     const bn=$("banner");let txt="",small=false;
