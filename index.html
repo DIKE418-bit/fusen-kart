@@ -139,6 +139,8 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 #mirrorFx.on{opacity:1}
 #banner{position:absolute;left:0;right:0;top:30%;text-align:center;font-family:var(--display);font-size:clamp(2.4rem,11vw,5rem);color:var(--sun);text-shadow:4px 4px 0 var(--pop),0 0 30px rgba(0,0,0,.5)}
 #banner.small{font-size:clamp(1.5rem,6vw,2.6rem)}
+#toast{position:absolute;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);max-width:min(46vw,420px);padding:5px 12px;border-radius:999px;background:rgba(27,22,64,.55);color:#fff;font:700 .78rem/1.3 var(--body);text-align:center;pointer-events:none;opacity:0;transition:opacity .2s;z-index:5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#toast.on{opacity:1}
 #rotate{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 210px);text-align:center;font-weight:900;font-size:.85rem;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.7)}
 @media (orientation:landscape){#rotate{display:none}}
 @media (orientation:landscape) and (max-height:500px){
@@ -192,6 +194,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div id="spd">0 km/h</div>
   </div>
   <div id="banner"></div>
+  <div id="toast" aria-live="polite"></div>
 </div>
 
 <section class="screen" id="menu">
@@ -1630,8 +1633,7 @@ function frame(){
     const bn=$("banner");let txt="",small=false;
     if(phase==="cd"){const c=Math.ceil((CD_MS-(t-phaseAt))/1000);txt=c>0?String(c):"GO!";}
     else if(phase==="play"&&t-phaseAt<700)txt="GO!";
-    else if(t<flashUntil){txt=flashTxt;small=true;}
-    else if(phase==="play"&&me.b<=0){txt="観戦中";small=true;}
+    {const tt=t<flashUntil?flashTxt:(phase==="play"&&me.b<=0?"観戦中":""),to=$("toast");if(to.dataset.t!==tt){to.dataset.t=tt;if(tt)to.textContent=tt;to.classList.toggle("on",!!tt);}}
     bn.textContent=txt;bn.classList.toggle("small",small);
   }else{
     $("speed").classList.remove("on");
