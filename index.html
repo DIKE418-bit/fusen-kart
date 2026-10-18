@@ -204,7 +204,8 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div class="field"><label>CPUレベル（CPU練習用）</label><div class="courses" id="cpuLv"></div></div>
     <div class="field"><label>CPUの人数</label><div class="courses" id="cpuNum"></div></div>
     <div class="field"><label>チームバトル（CPU練習用）</label><div class="courses" id="soloTm"></div></div>
-    <div class="field"><label>走行テストのCPU（1人追加）</label><div class="courses" id="testCpu"></div></div>
+    <div class="field"><label>走行テストのCPUの人数</label><div class="courses" id="testCpu"></div></div>
+    <div class="field"><label>走行テストのCPUの強さ</label><div class="courses" id="testLv"></div></div>
     <div class="field"><label>風船の色</label><div class="colors" id="colors"></div></div>
     <div class="field"><label for="passIn">合言葉</label><input id="passIn" maxlength="24" placeholder="例：たこやき" autocomplete="off"></div>
     <button class="btn" id="joinBtn" type="button">合言葉でルームに入る</button>
@@ -368,14 +369,14 @@ const MAX_STOCK=3;
 // ================= character SPEC abilities (one use per round) =================
 const SPECS={
   dog:{name:"おかわり",icon:"🍖",desc:"持っているアイテム全部を、使い切ったらもう1回おかわりできる"},
-  cat:{name:"猫抜け",icon:"👻",dur:10000,desc:"10秒間、障害物をすり抜け＋ポップマインも効かない"},
-  rabbit:{name:"大家族",icon:"🐰",dur:60000,desc:"自分そっくりの分身を3体、1分間出す（風船の数も同じ）"},
+  cat:{name:"猫抜け",icon:"👻",dur:40000,desc:"40秒間、障害物をすり抜ける"},
+  rabbit:{name:"大家族",icon:"🐰",dur:40000,desc:"自分そっくりの分身を3体、40秒間出す（風船の数も同じ）"},
   penguin:{name:"アイスエイジ",icon:"❄️",dur:40000,desc:"40秒間、まわりを氷づけにする全方位アタック（近づいた相手は何回でも割れる）＋飛んでくる攻撃も凍らせる"},
   bear:{name:"報復の執着",icon:"🐻",dur:120000,desc:"2分以内に攻撃されたら、40秒間ストーカーミサイル撃ち放題＋速度1.1倍（周りにはバレない）"},
   squirrel:{name:"電光石火",icon:"⚡",dur:40000,desc:"40秒間、スピード2.5倍"},
   lion:{name:"王の徴収",icon:"👑",desc:"スターを持っている相手のアイテムを全部うばう（スターを持つ相手がいる時だけ）"},
   kangaroo:{name:"袋隠し",icon:"👜",dur:40000,desc:"40秒間、アイテムボックスが自分にしか見えず自分しか取れない"}};
-const ICE_R=120,CLONE_MS=60000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=720,KNOCK_MS=1400;
+const ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=720,KNOCK_MS=1400;
 let clones=[],remoteClones=new Map(),remoteBots=new Map();
 // teams: teamOn 0=none 1=mixed red/blue 2=humans vs CPU; teamMap id->0/1 (decided by whoever started the round)
 const TEAM_COL=["#ff4f7b","#3fa9ff"],TEAM_NAME=["🔴 赤チーム","🔵 青チーム"];
@@ -403,7 +404,7 @@ function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e
   if(e.bearRage>t){e.bearCd=t+RAGE_CD;return launch(e,"homing",t,false);}
   switch(e.skin){
     case"dog":for(const it of [e.item,...(e.stock||[])])if(it)it.ok=true;if(mine)flash("🍖 おかわり！使い切ったらもう1回！",1600);break;
-    case"cat":e.ghostUntil=t+S.dur;if(mine)flash("👻 猫抜け！10秒すり抜け",1500);break;
+    case"cat":e.ghostUntil=t+S.dur;if(mine)flash("👻 猫抜け！40秒すり抜け",1500);break;
     case"rabbit":spawnClones(e,t);if(mine)flash("🐰 大家族！分身が3体出た！",1500);break;
     case"penguin":e.iceUntil=t+S.dur;e.iceStart=t;e.iceSeq=(e.iceSeq||0)+1;if(mine)flash("❄️ アイスエイジ！",1300);break;
     case"bear":e.bearArm=t+S.dur;e.bearPrevB=e.b;if(mine)flash("🐻 報復の執着…（2分以内に攻撃されたら発動）",1800);break;
@@ -535,7 +536,6 @@ function resolveHits(L,t){
       if(self&&t-p.t<700)continue;
       if(L.clone&&L.owner===E.id)continue;
       if(!self&&ally(E,L))continue;
-      if(def.trap&&t<(L.ghostUntil||0))continue;
       if(!self&&iceOn(L,t)&&Math.hypot(p.x-L.x,p.y-L.y)<ICE_R&&!L.h.some(h=>h[0]===E.id&&h[1]===p.id)){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();popFx(p.x,p.y,"#bfefff",10);continue;}
       if(t<L.jump||t<(L.star||0))continue;
       if(Math.hypot(p.x-L.x,p.y-L.y)<R+(def.r||PR)&&t>L.inv&&!L.h.some(h=>h[0]===E.id&&h[1]===p.id)){
@@ -560,8 +560,8 @@ const CPU_LV={1:{name:"よわい",spd:.76,wob:.6,gain:1.3,tol:.45,cd:3,lead:0,sp
   5:{name:"鬼",spd:1.12,wob:.02,gain:3,tol:.09,cd:.45,lead:1.2,spec:2.5,range:1.3}};
 let cpuLevel=3,cpuCount=3;try{const v=+localStorage.getItem("fk-cn");if(v>=1&&v<=6)cpuCount=v;}catch(e){}
 try{const v=+localStorage.getItem("fk-lv");if(CPU_LV[v])cpuLevel=v;}catch(e){}
-let onlineCpu=0,onlineLv=3,onlineTeam=0,soloTeam=0,testCpu=0;
-try{const g=k=>localStorage.getItem(k);let v=g("fk-ocn");if(v!==null&&+v>=0&&+v<=6)onlineCpu=+v;v=+g("fk-olv");if(CPU_LV[v])onlineLv=v;v=+g("fk-otm");if(v===1||v===2)onlineTeam=v;v=+g("fk-stm");if(v===1)soloTeam=1;v=+g("fk-tcp");if(CPU_LV[v])testCpu=v;}catch(e){}
+let onlineCpu=0,onlineLv=3,onlineTeam=0,soloTeam=0,testCpu=0,testLv=3;
+try{const g=k=>localStorage.getItem(k);let v=g("fk-ocn");if(v!==null&&+v>=0&&+v<=6)onlineCpu=+v;v=+g("fk-olv");if(CPU_LV[v])onlineLv=v;v=+g("fk-otm");if(v===1||v===2)onlineTeam=v;v=+g("fk-stm");if(v===1)soloTeam=1;v=g("fk-tcn");if(v!==null&&+v>=0&&+v<=6)testCpu=+v;v=+g("fk-tlv");if(CPU_LV[v])testLv=v;}catch(e){}
 function botThink(b,t,dt){
   if(b.b<=0)return[0,false];const L=CPU_LV[b.lv||3];
   let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0||ally(b,o)||(o.clone&&o.owner===(b.clone?b.owner:b.id))||(b.clone&&o.id===b.owner))continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
@@ -790,7 +790,7 @@ function startSolo(){
 }
 function startTest(v){
   savePrefs();mode="test";variant=v||null;leaveOnline();
-  me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;bots=testCpu?makeBots(1,testCpu,"cpu"):[];
+  me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;bots=makeBots(testCpu,testLv,"cpu");
   round=1;beginRound(1,pickedCourse);
 }
 function finish(){
@@ -1632,7 +1632,8 @@ function pickRow(id,items,cur,key,set){const wrap=$(id);items.forEach(([v,label]
 pickRow("oCpuNum",[0,1,2,3,4,5,6].map(i=>[i,i+"人"]),onlineCpu,"fk-ocn",v=>onlineCpu=v);
 pickRow("oCpuLv",[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name]),onlineLv,"fk-olv",v=>onlineLv=v);
 pickRow("oTeam",[[0,"個人戦"],[1,"チーム戦（赤vs青）"],[2,"みんな vs CPU"]],onlineTeam,"fk-otm",v=>onlineTeam=v);
-pickRow("testCpu",[[0,"なし"],...[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name])],testCpu,"fk-tcp",v=>testCpu=v);
+pickRow("testCpu",[0,1,2,3,4,5,6].map(i=>[i,i?i+"人":"なし"]),testCpu,"fk-tcn",v=>testCpu=v);
+pickRow("testLv",[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name]),testLv,"fk-tlv",v=>testLv=v);
 pickRow("soloTm",[[0,"なし（個人戦）"],[1,"あり（赤vs青）"]],soloTeam,"fk-stm",v=>soloTeam=v);
 let pickedCourse="arena";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])pickedCourse=s.co;}catch(e){}
