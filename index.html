@@ -380,7 +380,7 @@ const SPECS={
   squirrel:{name:"電光石火",icon:"⚡",dur:40000,desc:"40秒間、スピード2.5倍"},
   lion:{name:"王の徴収",icon:"👑",desc:"スターを持っている相手のアイテムを全部うばう（スターを持つ相手がいる時だけ）"},
   kangaroo:{name:"袋隠し",icon:"👜",dur:40000,desc:"40秒間、アイテムボックスが自分にしか見えず自分しか取れない"}};
-const ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=720,KNOCK_MS=1400;
+const ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=3600,KNOCK_MS=1400;
 let clones=[],remoteClones=new Map(),remoteBots=new Map();
 // teams: teamOn 0=none 1=mixed red/blue 2=humans vs CPU; teamMap id->0/1 (decided by whoever started the round)
 const TEAM_COL=["#ff4f7b","#3fa9ff"],TEAM_NAME=["🔴 赤チーム","🔵 青チーム"];
@@ -446,12 +446,13 @@ function useStarSlot(e,i,t,back){if(!(e.star&&t<e.star)||e.b<=0||t<e.spin||phase
   if(t<(e.starCd[i]||0))return false;e.starCd[i]=t+STAR_FIRE_CD;return launch(e,it.k,t,back);}
 function endStar(e){if(e.starStock&&e.starStock.length){const back=e.starStock.concat(e.stock||[]);if(!e.item)e.item=back.shift();e.stock=back.slice(0,2);}e.starStock=[];}
 // frozen by Ice Age: slide straight away like a puck, bouncing off edges / walls / pillars / water
-function knockMove(e,dt){const ox=e.x,oy=e.y;e.x+=e.kvx*dt;e.y+=e.kvy*dt;
+function knockMove(e,dt){const n=Math.max(1,Math.ceil(Math.hypot(e.kvx,e.kvy)*dt/20));for(let i=0;i<n;i++)knockStep(e,dt/n);const k=Math.pow(.45,dt);e.kvx*=k;e.kvy*=k;e.v=0;}
+// sub-steps keep the fast slide from tunnelling through walls, crates or water
+function knockStep(e,dt){const ox=e.x,oy=e.y;e.x+=e.kvx*dt;e.y+=e.kvy*dt;
   if(e.x<R||e.x>W-R){e.kvx=-e.kvx;e.x=clamp(e.x,R,W-R);}if(e.y<R||e.y>H-R){e.kvy=-e.kvy;e.y=clamp(e.y,R,H-R);}
   if(SOLID&&SOLID(e.x,e.y)){if(!SOLID(e.x,oy)){e.kvy=-e.kvy;e.y=oy;}else if(!SOLID(ox,e.y)){e.kvx=-e.kvx;e.x=ox;}else{e.kvx=-e.kvx;e.kvy=-e.kvy;e.x=ox;e.y=oy;}}
   for(const q of PILLARS){const dx=e.x-q.x,dy=e.y-q.y,d=Math.hypot(dx,dy)||1;if(d<q.r+R){const nx=dx/d,ny=dy/d,dot=e.kvx*nx+e.kvy*ny;if(dot<0){e.kvx-=2*dot*nx;e.kvy-=2*dot*ny;}e.x=q.x+nx*(q.r+R);e.y=q.y+ny*(q.r+R);}}
-  for(const w of WALLS){const n=pushOutRect(e,R,w);if(n){const dot=e.kvx*n[0]+e.kvy*n[1];if(dot<0){e.kvx-=2*dot*n[0];e.kvy-=2*dot*n[1];}}}
-  const k=Math.pow(.45,dt);e.kvx*=k;e.kvy*=k;e.v=0;}
+  for(const w of WALLS){const n=pushOutRect(e,R,w);if(n){const dot=e.kvx*n[0]+e.kvy*n[1];if(dot<0){e.kvx-=2*dot*n[0];e.kvy-=2*dot*n[1];}}}}
 function drive(e,steer,dHeld,dt,t,go){
   if(e.star&&t>=e.star&&e.starStock&&e.starStock.length)endStar(e);
   if(!e.item&&e.stock&&e.stock.length&&!(e.star&&t<e.star))e.item=e.stock.shift();
