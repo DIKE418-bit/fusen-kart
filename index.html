@@ -203,6 +203,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div class="field"><label>コース</label><div class="courses" id="courses"></div></div>
     <div class="field"><label>CPUレベル（CPU練習用）</label><div class="courses" id="cpuLv"></div></div>
     <div class="field"><label>CPUの人数</label><div class="courses" id="cpuNum"></div></div>
+    <div class="field"><label>チームバトル（CPU練習用）</label><div class="courses" id="soloTm"></div></div>
     <div class="field"><label>風船の色</label><div class="colors" id="colors"></div></div>
     <div class="field"><label for="passIn">合言葉</label><input id="passIn" maxlength="24" placeholder="例：たこやき" autocomplete="off"></div>
     <button class="btn" id="joinBtn" type="button">合言葉でルームに入る</button>
@@ -229,6 +230,9 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div class="code" id="codeShow"></div>
     <div class="status" id="connSt"><i></i><span>接続中…</span></div>
     <ul class="plist" id="plist"></ul>
+    <div class="field"><label>CPUの人数</label><div class="courses" id="oCpuNum"></div></div>
+    <div class="field"><label>CPUの強さ</label><div class="courses" id="oCpuLv"></div></div>
+    <div class="field"><label>バトル形式</label><div class="courses" id="oTeam"></div></div>
     <p class="note" id="lobbyNote">友達に同じ合言葉を入れてもらってください。2人以上そろったらスタートできます。</p>
     <button class="btn" id="startBtn" type="button" disabled>スタート！</button>
     <button class="btn ghost" id="leaveBtn" type="button">ルームを出る</button>
@@ -268,13 +272,13 @@ const ITEMS={
   acorn:{name:"ポップマイン",icon:"💥",n:2,w:25,hold:true,kind:"proj",trap:true,life:20000,bounce:false,hit:"pop",boom:true,r:14,mesh:()=>buildMine()},
   homing:{name:"ストーカーミサイル",icon:"🎯",n:1,w:12,hold:true,kind:"proj",speed:400,back:400,life:6000,bounce:true,die:true,lock:true,face:true,hit:"pop",step:(p,o,dt,t)=>homingStep(p,o,dt,t),mesh:()=>buildMissile()},
   bubble:{name:"バリバリバリア",icon:"🛡️",n:1,w:10,use:(e,t)=>{e.shield=1;e.shieldUntil=t+120000;if(e===me)flash("🛡️ バリバリバリア！（攻撃されなければ2分）",1600);}},
-  ink:{name:"お邪魔インク",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;if(mode!=="online")localInk(e,t);}},
-  mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&mode!=="test")flash("🪞 ミラーマジック発動！みんなのハンドルが5秒逆に！",1600);if(mode!=="online")localMirror(e,t);}},
+  ink:{name:"お邪魔インク",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;localInk(e,t);}},
+  mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&mode!=="test")flash("🪞 ミラーマジック発動！みんなのハンドルが5秒逆に！",1600);localMirror(e,t);}},
   star:{name:"スター",icon:"🌟",n:1,w:2,use:(e,t)=>{e.star=t+STAR_MS;e.starStock=(e.stock||[]).slice(0,2);e.stock=[];e.starCd=[0,0];if(e===me)flash(e.starStock.length?"🌟 スター！無敵＋体当たりアタック＋上のアイテム撃ち放題！":"🌟 スター！無敵＋体当たりでアタック！",1800);}},
   starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:540,back:300,life:4000,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
 };
 let mirrorFx=0;
-function localMirror(src,t){if(mode==="test"&&me){me.mirrorUntil=t+5000;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src)continue;o.mirrorUntil=t+5000;if(o===me){mirrorFx=t+5000;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
+function localMirror(src,t){if(mode==="test"&&me){me.mirrorUntil=t+5000;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;o.mirrorUntil=t+5000;if(o===me){mirrorFx=t+5000;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
 // ---------- walls (axis-aligned rectangles [x1,y1,x2,y2]) ----------
 let WALLS=[];
 function pushOutRect(o,r,w){const cx=clamp(o.x,w[0],w[2]),cy=clamp(o.y,w[1],w[3]);const dx=o.x-cx,dy=o.y-cy,d=Math.hypot(dx,dy);
@@ -305,8 +309,8 @@ function wipeInk(x,y){if(now()>=inkUntil)return;const c=$("ink"),g=c.getContext(
   g.fillStyle=gr;g.beginPath();g.arc(cx,cy,r,0,7);g.fill();g.globalCompositeOperation="source-over";}
 addEventListener("pointermove",e=>{if(e.pointerType!=="mouse"||e.buttons)wipeInk(e.clientX,e.clientY);},{capture:true,passive:true});
 addEventListener("pointerdown",e=>wipeInk(e.clientX,e.clientY),{capture:true,passive:true});
-function localInk(src,t){if(mode==="test"){showInk();return;}for(const o of [me,...bots]){if(!o||o===src)continue;if(o===me)showInk();else o.inkUntil=t+3500;}}
-function nearestFoe(owner,x,y){let best=null,bd=1e9;for(const o of allEnts()){if(o.id===owner.id||o.b<=0)continue;const d=Math.hypot(o.x-x,o.y-y);if(d<bd){bd=d;best=o;}}return best;}
+function localInk(src,t){if(mode==="test"){showInk();return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;if(o===me)showInk();else o.inkUntil=t+3500;}}
+function nearestFoe(owner,x,y){let best=null,bd=1e9;for(const o of allEnts()){if(o.id===owner.id||o.b<=0||ally(owner,o)||(o.clone&&o.owner===owner.id))continue;const d=Math.hypot(o.x-x,o.y-y);if(d<bd){bd=d;best=o;}}return best;}
 function homingStep(p,owner,dt,t){if(t-p.t<180)return;let best=allEnts().find(o=>o.id===p.tg&&o.b>0);
   if(!best){best=nearestFoe(owner,p.x,p.y);if(best)p.tg=best.id;}
   if(!best)return;const sp=Math.hypot(p.vx,p.vy)||360,cur=Math.atan2(p.vy,p.vx),want=Math.atan2(best.y-p.y,best.x-p.x),na=cur+clamp(angDiff(want,cur),-4.6*dt,4.6*dt);
@@ -352,7 +356,7 @@ function makeEnt(id,name,color,local,bot){return{id,name,color,local,bot,x:0,y:0
 let me=null,bots=[],remotes=new Map();
 let mode=null,phase="menu",phaseAt=0,round=0,endAt=0;
 
-function allEnts(){const a=[me,...bots,...clones];if(mode==="online"){for(const e of remotes.values())a.push(e);for(const e of remoteClones.values())a.push(e);}return a.filter(Boolean);}
+function allEnts(){const a=[me,...bots,...clones];if(mode==="online"){for(const e of remotes.values())a.push(e);for(const e of remoteBots.values())a.push(e);for(const e of remoteClones.values())a.push(e);}return a.filter(Boolean);}
 function roundEnts(){return allEnts().filter(e=>e.local||e.r===round);}
 function scoreOf(id){let s=0;for(const e of allEnts()){if(e.id===id)continue;for(const h of e.h)if(h[0]===id&&h[2]===1)s++;}return s;}
 function spawn(e,i){const s=SPAWNS[i%SPAWNS.length];e.x=e.rx=s[0];e.y=e.ry=s[1];e.a=e.ra=Math.atan2(H/2-s[1],W/2-s[0]);
@@ -370,12 +374,20 @@ const SPECS={
   squirrel:{name:"電光石火",icon:"⚡",dur:40000,desc:"40秒間、スピード2.5倍"},
   lion:{name:"王の徴収",icon:"👑",desc:"スターを持っている相手のアイテムを全部うばう（スターを持つ相手がいる時だけ）"},
   kangaroo:{name:"袋隠し",icon:"👜",dur:40000,desc:"40秒間、アイテムボックスが自分にしか見えず自分しか取れない"}};
-const ICE_R=120,CLONE_MS=60000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500;
-let clones=[],remoteClones=new Map();
+const ICE_R=120,CLONE_MS=60000,DASH_SPEED=2.5,RAGE_SPEED=1.1,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=720,KNOCK_MS=1400;
+let clones=[],remoteClones=new Map(),remoteBots=new Map();
+// teams: teamOn 0=none 1=mixed red/blue 2=humans vs CPU; teamMap id->0/1 (decided by whoever started the round)
+const TEAM_COL=["#ff4f7b","#3fa9ff"],TEAM_NAME=["🔴 赤チーム","🔵 青チーム"];
+let teamOn=0,teamMap=new Map(),hostRound=0;
+function teamOf(e){if(!teamOn||!e)return -1;const v=teamMap.get(e.clone?e.owner:e.id);return v===undefined?-1:v;}
+function ally(a,b){if(!teamOn||!a||!b)return false;const x=teamOf(a);return x>=0&&x===teamOf(b);}
+function buildTeams(humans,botIds,m){const mp=new Map();if(m===2){humans.forEach(id=>mp.set(id,0));botIds.forEach(id=>mp.set(id,1));}
+  else if(m===1)[...humans,...botIds].forEach((id,i)=>mp.set(id,i%2));return mp;}
+function applyTeamColors(){if(!teamOn)return;for(const o of [me,...bots]){if(!o)continue;const k=teamOf(o);if(k>=0)o.color=TEAM_COL[k];}}
 const on_=(E,f,flag,t)=>E.local?t<(E[f]||0):!!E[flag];
 const ghostOn=(E,t)=>on_(E,"ghostUntil","ghostFlag",t),iceOn=(E,t)=>on_(E,"iceUntil","iceFlag",t),pouchOn=(E,t)=>on_(E,"pouchUntil","pouchFlag",t);
 function hasStar(o){if(o.local)return(o.item&&o.item.k==="star")||(o.stock||[]).some(x=>x.k==="star");return(o.invList||[]).some(q=>q[0]==="star");}
-function starHolders(e){return allEnts().filter(o=>o!==e&&!o.clone&&o.b>0&&hasStar(o)).sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y));}
+function starHolders(e){return allEnts().filter(o=>o!==e&&!o.clone&&o.b>0&&!ally(e,o)&&hasStar(o)).sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y));}
 function pouchBlocked(e,t){return allEnts().some(o=>o!==e&&!o.clone&&pouchOn(o,t));}
 function specActiveUntil(e,t){switch(e.skin){case"cat":return e.ghostUntil||0;case"penguin":return e.iceUntil||0;case"bear":return e.bearRage>t?e.bearRage:(e.bearArm||0);
   case"squirrel":return e.dashUntil||0;case"kangaroo":return e.pouchUntil||0;case"rabbit":{let m=0;for(const c of clones)if(c.owner===e.id&&c.b>0)m=Math.max(m,c.cloneUntil);return m;}}return 0;}
@@ -407,10 +419,11 @@ function spawnClones(o,t){for(let i=0;i<3;i++){const c=makeEnt(o.id+"#c"+i,o.nam
 function stepClones(t,dt,go){for(const c of clones){const [s,d]=go?botThink(c,t,dt):[0,false];drive(c,s,d,dt,t,go);}
   clones=clones.filter(c=>{if(c.b<=0&&!c.deadAt)c.deadAt=t+700;const keep=t<c.cloneUntil&&!(c.deadAt&&t>c.deadAt);if(!keep&&c.b>0)popFx(c.x,c.y,"#ffffff",30);return keep;});}
 function resolveIce(L,t){if(L.b<=0||t<(L.star||0))return;
-  for(const E of allEnts()){if(E===L||E.clone||!iceOn(E,t))continue;if(L.clone&&L.owner===E.id)continue;if(t<=L.inv||t<(L.frozenUntil||0)||Math.hypot(E.x-L.x,E.y-L.y)>=ICE_R)continue;
+  for(const E of allEnts()){if(E===L||E.clone||!iceOn(E,t)||ally(E,L))continue;if(L.clone&&L.owner===E.id)continue;if(t<=L.inv||t<(L.frozenUntil||0)||Math.hypot(E.x-L.x,E.y-L.y)>=ICE_R)continue;
     L.iceN=(L.iceN||0)+1;const seq=600000+L.iceN;
     if(L.shield){L.shield=0;L.h.push([E.id,seq,0]);if(L.h.length>8)L.h.shift();L.inv=t+800;barriFx(L.x,L.y);if(L===me)flash("⚡ BARI！バリアで防いだ！");continue;}
-    L.h.push([E.id,seq,L.clone?0:1]);if(L.h.length>8)L.h.shift();L.b--;L.inv=t+1600;L.frozenUntil=t+FREEZE_MS;L.v=0;L.drifting=false;L.boost=0;popFx(L.x,L.y,"#bfefff",26);
+    L.h.push([E.id,seq,L.clone?0:1]);if(L.h.length>8)L.h.shift();L.b--;L.inv=t+1600;L.frozenUntil=t+FREEZE_MS;L.v=0;
+    {let dx=L.x-E.x,dy=L.y-E.y,d=Math.hypot(dx,dy);let a=d>1?Math.atan2(dy,dx):Math.random()*Math.PI*2;a+=(Math.random()-.5)*.9;L.kvx=Math.cos(a)*KNOCK_V;L.kvy=Math.sin(a)*KNOCK_V;L.knockUntil=t+KNOCK_MS;}L.drifting=false;L.boost=0;popFx(L.x,L.y,"#bfefff",26);
     if(L===me){flash(L.b>0?"❄️ "+E.name+" のアイスエイジ！カチコチ…":"❄️ "+E.name+" のアイスエイジで脱落…",2000);if(navigator.vibrate)try{navigator.vibrate(80)}catch(e){}}}}
 function bearWatch(e,t){if(e.bearArm){if(t>=e.bearArm)e.bearArm=0;else if(e.b<(e.bearPrevB??e.b)&&e.b>0){e.bearArm=0;e.bearRage=t+RAGE_MS;e.bearCd=0;if(e===me)flash("🐻 報復モード！40秒間ミサイル撃ち放題！",2000);}}e.bearPrevB=e.b;}
 function grantRefill(e,it){if(it&&it.ok&&ITEMS[it.k]){(e.stock=e.stock||[]).push({k:it.k,n:ITEMS[it.k].n||1});if(e===me)flash("🍖 おかわり！"+ITEMS[it.k].name,1200);}}
@@ -425,6 +438,13 @@ function launch(e,k,t,back){const def=ITEMS[k];if(!def)return false;
 function useStarSlot(e,i,t,back){if(!(e.star&&t<e.star)||e.b<=0||t<e.spin||phase!=="play")return false;const it=(e.starStock||[])[i];if(!it)return false;
   if(t<(e.starCd[i]||0))return false;e.starCd[i]=t+STAR_FIRE_CD;return launch(e,it.k,t,back);}
 function endStar(e){if(e.starStock&&e.starStock.length){const back=e.starStock.concat(e.stock||[]);if(!e.item)e.item=back.shift();e.stock=back.slice(0,2);}e.starStock=[];}
+// frozen by Ice Age: slide straight away like a puck, bouncing off edges / walls / pillars / water
+function knockMove(e,dt){const ox=e.x,oy=e.y;e.x+=e.kvx*dt;e.y+=e.kvy*dt;
+  if(e.x<R||e.x>W-R){e.kvx=-e.kvx;e.x=clamp(e.x,R,W-R);}if(e.y<R||e.y>H-R){e.kvy=-e.kvy;e.y=clamp(e.y,R,H-R);}
+  if(SOLID&&SOLID(e.x,e.y)){if(!SOLID(e.x,oy)){e.kvy=-e.kvy;e.y=oy;}else if(!SOLID(ox,e.y)){e.kvx=-e.kvx;e.x=ox;}else{e.kvx=-e.kvx;e.kvy=-e.kvy;e.x=ox;e.y=oy;}}
+  for(const q of PILLARS){const dx=e.x-q.x,dy=e.y-q.y,d=Math.hypot(dx,dy)||1;if(d<q.r+R){const nx=dx/d,ny=dy/d,dot=e.kvx*nx+e.kvy*ny;if(dot<0){e.kvx-=2*dot*nx;e.kvy-=2*dot*ny;}e.x=q.x+nx*(q.r+R);e.y=q.y+ny*(q.r+R);}}
+  for(const w of WALLS){const n=pushOutRect(e,R,w);if(n){const dot=e.kvx*n[0]+e.kvy*n[1];if(dot<0){e.kvx-=2*dot*n[0];e.kvy-=2*dot*n[1];}}}
+  const k=Math.pow(.45,dt);e.kvx*=k;e.kvy*=k;e.v=0;}
 function drive(e,steer,dHeld,dt,t,go){
   if(e.star&&t>=e.star&&e.starStock&&e.starStock.length)endStar(e);
   if(!e.item&&e.stock&&e.stock.length&&!(e.star&&t<e.star))e.item=e.stock.shift();
@@ -444,7 +464,7 @@ function drive(e,steer,dHeld,dt,t,go){
     } else e.a+=steer*2.5*spd*dt;
   } else e.v*=Math.pow(.1,dt);
   e.steer=steer;
-  const px=e.x,py=e.y;e.x+=Math.cos(e.a)*e.v*dt;e.y+=Math.sin(e.a)*e.v*dt;
+  const px=e.x,py=e.y;if(t<(e.knockUntil||0))knockMove(e,dt);else{e.x+=Math.cos(e.a)*e.v*dt;e.y+=Math.sin(e.a)*e.v*dt;}
   let hitSolid=false;if(SOLID&&SOLID(e.x,e.y)){hitSolid=true;if(!SOLID(e.x,py))e.y=py;else if(!SOLID(px,e.y))e.x=px;else{e.x=px;e.y=py;}}
   // obstacles: slow down, but never below 65% of max speed
   const floorV=OBSTACLE_FLOOR*max;const slow=()=>{if(e.v>floorV)e.v=Math.max(floorV,e.v*.8);};
@@ -486,7 +506,7 @@ function stepProj(e,dt,t){
 }
 function resolveRam(L,t){
   if(L.b<=0||t<=L.inv||t<(L.star||0))return;
-  for(const E of allEnts()){if(E===L||E.b<=0)continue;const on=E.local?t<(E.star||0):E.starFlag;if(!on)continue;
+  for(const E of allEnts()){if(E===L||E.b<=0||ally(E,L))continue;const on=E.local?t<(E.star||0):E.starFlag;if(!on)continue;
     if(Math.hypot(E.x-L.x,E.y-L.y)<R*2+6){
       if(L.shield){L.shield=0;L.inv=t+800;barriFx(L.x,L.y);if(L===me)flash("⚡ BARI！バリアで防いだ！");return;}
       L.ramN=(L.ramN||0)+1;L.h.push([E.id,900000+L.ramN,L.clone?0:1]);if(L.h.length>8)L.h.shift();L.b--;L.inv=t+1600;L.spin=t+800;L.v*=.2;L.boost=0;L.drifting=false;popFx(L.x,L.y,"#ffe066",20);
@@ -495,7 +515,7 @@ function resolveRam(L,t){
 }
 function resolveMagnet(L,t){
   if(L.b<=0||t<L.jump||t<=L.inv)return;
-  for(const E of allEnts()){if(E===L||E.b<=0)continue;const on=E.local?t<(E.mag||0):E.mgFlag;if(!on)continue;
+  for(const E of allEnts()){if(E===L||E.b<=0||ally(E,L))continue;const on=E.local?t<(E.mag||0):E.mgFlag;if(!on)continue;
     if(Math.hypot(E.x-L.x,E.y-L.y)<R*2+8){
       if(L.shield){L.shield=0;L.inv=t+800;barriFx(L.x,L.y);if(L===me)flash("⚡ BARI！バリアで防いだ！");return;}
       L.stealN=(L.stealN||0)+1;L.h.push([E.id,-L.stealN,1]);if(L.h.length>8)L.h.shift();L.b--;L.inv=t+1600;L.v*=.5;
@@ -513,6 +533,7 @@ function resolveHits(L,t){
       const def=ITEMS[p.k]||ITEMS.spike;
       if(self&&t-p.t<700)continue;
       if(L.clone&&L.owner===E.id)continue;
+      if(!self&&ally(E,L))continue;
       if(def.trap&&t<(L.ghostUntil||0))continue;
       if(!self&&iceOn(L,t)&&Math.hypot(p.x-L.x,p.y-L.y)<ICE_R&&!L.h.some(h=>h[0]===E.id&&h[1]===p.id)){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();popFx(p.x,p.y,"#bfefff",10);continue;}
       if(t<L.jump||t<(L.star||0))continue;
@@ -538,9 +559,11 @@ const CPU_LV={1:{name:"よわい",spd:.76,wob:.6,gain:1.3,tol:.45,cd:3,lead:0,sp
   5:{name:"鬼",spd:1.12,wob:.02,gain:3,tol:.09,cd:.45,lead:1.2,spec:2.5,range:1.3}};
 let cpuLevel=3,cpuCount=3;try{const v=+localStorage.getItem("fk-cn");if(v>=1&&v<=6)cpuCount=v;}catch(e){}
 try{const v=+localStorage.getItem("fk-lv");if(CPU_LV[v])cpuLevel=v;}catch(e){}
+let onlineCpu=0,onlineLv=3,onlineTeam=0,soloTeam=0;
+try{const g=k=>localStorage.getItem(k);let v=g("fk-ocn");if(v!==null&&+v>=0&&+v<=6)onlineCpu=+v;v=+g("fk-olv");if(CPU_LV[v])onlineLv=v;v=+g("fk-otm");if(v===1||v===2)onlineTeam=v;v=+g("fk-stm");if(v===1)soloTeam=1;}catch(e){}
 function botThink(b,t,dt){
   if(b.b<=0)return[0,false];const L=CPU_LV[b.lv||3];
-  let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
+  let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0||ally(b,o)||(o.clone&&o.owner===(b.clone?b.owner:b.id))||(b.clone&&o.id===b.owner))continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
   let gx=W/2,gy=H/2;
   if(b.clone){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){for(let k=0;k<20;k++){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];if(!solidAt(b.wp[0],b.wp[1]))break;}b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
   else if(!b.item){let bd=1e9;for(const bx of BOXES)if(bx.on){const d=Math.hypot(bx.x-b.x,bx.y-b.y);if(d<bd){bd=d;gx=bx.x;gy=bx.y;}}}
@@ -670,69 +693,98 @@ async function joinOnline(){
   unsubs.push(nroom.onConnection(c=>{const s=$("connSt");s.classList.toggle("on",c);s.querySelector("span").textContent=c?"オンライン":"再接続中…";},()=>{}));
   toLobby();
 }
+function parseH(v){return Array.isArray(v)?v.slice(0,8).filter(Array.isArray).map(q=>[String(q[0]),q[1]|0,q[2]|0]):[];}
+// apply a published kart state (a human peer's presence, or one CPU entry inside the host's presence)
+function applyState(e,pr,t){
+  e.name=String(pr.n||"だれか").slice(0,10);e.color=COLORS.includes(pr.c)?pr.c:COLORS[1];
+  e.x=clamp(+pr.x||0,0,W);e.y=clamp(+pr.y||0,0,H);e.a=+pr.a||0;e.b=clamp(pr.b|0,0,3);
+  e.skin=CHARS[pr.sk]?pr.sk:"dog";e.invFlag=!!pr.iv;e.boostFlag=!!pr.bo;e.dr=clamp(pr.dr|0,0,3);e.ds=clamp(pr.ds|0,-1,1);
+  e.pj=Array.isArray(pr.pj)?pr.pj.slice(0,6).filter(Array.isArray).map(q=>({id:q[0]|0,x:+q[1]||0,y:+q[2]||0,vx:+q[3]||0,vy:+q[4]||0,k:ITEMS[q[5]]?q[5]:"spike",t})):[];
+  e.h=parseH(pr.h);
+  e.heldK=Array.isArray(pr.it)&&ITEMS[pr.it[0]]?pr.it[0]:null;e.heldN=Array.isArray(pr.it)?clamp(pr.it[1]|0,0,3):0;e.starFlag=!!pr.sr;
+  {const mr=pr.mr|0;if(e.prevMr!==undefined&&mr>e.prevMr&&phase==="play"){for(const o of [me,...bots]){if(!o||ally(e,o))continue;o.mirrorUntil=now()+5000;if(o===me){mirrorFx=now()+5000;flash("🪞 "+e.name+" のミラーマジック！ハンドルが左右逆に！",1800);}}}e.prevMr=mr;}
+  e.invList=Array.isArray(pr.inv)?pr.inv.slice(0,3).filter(q=>Array.isArray(q)&&ITEMS[q[0]]).map(q=>[q[0],clamp(q[1]|0,1,3)]):[];
+  e.ghostFlag=!!pr.gh;e.iceFlag=!!pr.ia;e.iceSeq=pr.is|0;e.pouchFlag=!!pr.kg;e.frozenFlag=!!pr.fz;
+  {const lt=Array.isArray(pr.lt)?pr.lt:null,n=lt?lt[1]|0:(e.prevLt||0);if(lt&&n>(e.prevLt||0)&&phase==="play"){const v=[me,...bots].find(o=>o&&o.id===lt[0]);if(v){v.item=null;v.stock=[];v.starStock=[];if(v===me)flash("👑 "+e.name+" に全アイテムを徴収された！",2200);}}e.prevLt=n;}
+  {const cl=Array.isArray(pr.cl)?pr.cl.slice(0,3):[];for(let i=0;i<3;i++){const id=e.id+"#c"+i,q=cl[i];let c=remoteClones.get(id);
+    if(!Array.isArray(q)){if(c)remoteClones.delete(id);continue;}
+    if(!c){c=makeEnt(id,e.name,e.color,false,false);c.clone=true;c.owner=e.id;c.rx=+q[0]||0;c.ry=+q[1]||0;c.ra=+q[2]||0;remoteClones.set(id,c);}
+    c.name=e.name;c.color=e.color;c.skin=e.skin;c.r=e.r;c.x=clamp(+q[0]||0,0,W);c.y=clamp(+q[1]||0,0,H);c.a=+q[2]||0;c.b=clamp(q[3]|0,0,3);c.pj=[];c.h=parseH(q[4]);}}
+  e.shield=pr.sh?1:0;e.mgFlag=!!pr.mg;if(pr.jp&&!e.jpFlag)e.jumpAtLocal=t;e.jpFlag=!!pr.jp;
+  {const ik=pr.ik|0;if(e.prevIk!==undefined&&ik>e.prevIk&&phase==="play"){const tt=now();for(const o of [me,...bots]){if(!o||ally(e,o))continue;if(o===me)showInk();else o.inkUntil=tt+3500;}}e.prevIk=ik;}
+}
+function dropRemoteBot(id){remoteBots.delete(id);for(const k of [...remoteClones.keys()])if(k.startsWith(id+"#"))remoteClones.delete(k);}
 function onPeersChange(ch){
   const mine=ch.peers.find(p=>p.sameTab);if(mine&&myPeer!==mine.peer){myPeer=mine.peer;if(me)me.id=myPeer;}
-  for(const p of ch.left){remotes.delete(p.peer);for(const id of [...remoteClones.keys()])if(id.startsWith(p.peer+"#"))remoteClones.delete(id);}
+  for(const p of ch.left){remotes.delete(p.peer);for(const id of [...remoteClones.keys()])if(id.startsWith(p.peer+"#"))remoteClones.delete(id);for(const id of [...remoteBots.keys()])if(id.startsWith(p.peer+"~"))dropRemoteBot(id);}
   const t=now();
   for(const p of ch.peers){if(p.sameTab)continue;const pr=p.presence||{};
     let e=remotes.get(p.peer);
     if(!e){e=makeEnt(p.peer,"",COLORS[1],false,false);e.rx=+pr.x||0;e.ry=+pr.y||0;e.ra=+pr.a||0;remotes.set(p.peer,e);}
-    e.name=String(pr.n||"だれか").slice(0,10);e.color=COLORS.includes(pr.c)?pr.c:COLORS[1];
-    e.x=clamp(+pr.x||0,0,W);e.y=clamp(+pr.y||0,0,H);e.a=+pr.a||0;e.b=clamp(pr.b|0,0,3);e.r=pr.r|0;e.st=String(pr.st||"");
-    e.skin=CHARS[pr.sk]?pr.sk:"dog";e.invFlag=!!pr.iv;e.boostFlag=!!pr.bo;e.dr=clamp(pr.dr|0,0,3);e.ds=clamp(pr.ds|0,-1,1);
-    e.pj=Array.isArray(pr.pj)?pr.pj.slice(0,6).map(q=>({id:q[0]|0,x:+q[1]||0,y:+q[2]||0,vx:+q[3]||0,vy:+q[4]||0,k:ITEMS[q[5]]?q[5]:"spike",t})):[];
-    e.co=COURSES[pr.co]?pr.co:"arena";
-    e.h=Array.isArray(pr.h)?pr.h.slice(0,8).map(q=>[String(q[0]),q[1]|0,q[2]|0]):[];
-    e.heldK=Array.isArray(pr.it)&&ITEMS[pr.it[0]]?pr.it[0]:null;e.heldN=Array.isArray(pr.it)?clamp(pr.it[1]|0,0,3):0;e.starFlag=!!pr.sr;
-    {const mr=pr.mr|0;if(e.prevMr!==undefined&&mr>e.prevMr&&phase==="play"){me.mirrorUntil=now()+5000;mirrorFx=now()+5000;flash("🪞 "+e.name+" のミラーマジック！ハンドルが左右逆に！",1800);}e.prevMr=mr;}
-    e.invList=Array.isArray(pr.inv)?pr.inv.slice(0,3).filter(q=>Array.isArray(q)&&ITEMS[q[0]]).map(q=>[q[0],clamp(q[1]|0,1,3)]):[];
-    e.ghostFlag=!!pr.gh;e.iceFlag=!!pr.ia;e.iceSeq=pr.is|0;e.pouchFlag=!!pr.kg;e.frozenFlag=!!pr.fz;
-    {const lt=Array.isArray(pr.lt)?pr.lt:null,n=lt?lt[1]|0:(e.prevLt||0);if(lt&&me&&lt[0]===me.id&&n>(e.prevLt||0)&&phase==="play"){me.item=null;me.stock=[];me.starStock=[];flash("👑 "+e.name+" に全アイテムを徴収された！",2200);}e.prevLt=n;}
-    {const cl=Array.isArray(pr.cl)?pr.cl.slice(0,3):[];for(let i=0;i<3;i++){const id=p.peer+"#c"+i,q=cl[i];let c=remoteClones.get(id);
-      if(!Array.isArray(q)){if(c)remoteClones.delete(id);continue;}
-      if(!c){c=makeEnt(id,e.name,e.color,false,false);c.clone=true;c.owner=p.peer;c.rx=+q[0]||0;c.ry=+q[1]||0;c.ra=+q[2]||0;remoteClones.set(id,c);}
-      c.name=e.name;c.color=e.color;c.skin=e.skin;c.r=e.r;c.x=clamp(+q[0]||0,0,W);c.y=clamp(+q[1]||0,0,H);c.a=+q[2]||0;c.b=clamp(q[3]|0,0,3);c.pj=[];
-      c.h=Array.isArray(q[4])?q[4].slice(0,8).map(z=>[String(z[0]),z[1]|0,z[2]|0]):[];}}
-    e.shield=pr.sh?1:0;e.mgFlag=!!pr.mg;if(pr.jp&&!e.jpFlag)e.jumpAtLocal=t;e.jpFlag=!!pr.jp;
-    {const ik=pr.ik|0;if(e.prevIk!==undefined&&ik>e.prevIk&&phase==="play")showInk();e.prevIk=ik;}
+    e.r=pr.r|0;e.st=String(pr.st||"");e.co=COURSES[pr.co]?pr.co:"arena";
+    applyState(e,pr,t);
+    e.hsR=pr.hs?e.r:0;e.cf=Array.isArray(pr.cf)?pr.cf.map(v=>v|0):null;e.tmList=Array.isArray(pr.tm)?pr.tm.filter(Array.isArray):null;
+    {const bt=Array.isArray(pr.bt)?pr.bt.slice(0,6):[],keep=new Set();
+      for(const q of bt){if(!q||typeof q!=="object")continue;const id=String(q.id||"");if(!id.startsWith(p.peer+"~"))continue;keep.add(id);
+        let b=remoteBots.get(id);if(!b){b=makeEnt(id,"",COLORS[1],false,false);b.cpu=true;b.rx=+q.x||0;b.ry=+q.y||0;b.ra=+q.a||0;remoteBots.set(id,b);}
+        b.r=e.r;applyState(b,q,t);}
+      for(const id of [...remoteBots.keys()])if(id.startsWith(p.peer+"~")&&!keep.has(id))dropRemoteBot(id);}
+    {const ik=pr.ik|0;e.prevIk=ik;}
   }
   if(phase==="lobby")renderLobby();
-  if(phase==="lobby"||phase==="over"){for(const e of remotes.values()){if(e.r>round&&(e.st==="cd"||e.st==="play")){beginRound(e.r,e.co);break;}}}
+  if(phase==="lobby"||phase==="over"){for(const e of remotes.values()){if(e.r>round&&(e.st==="cd"||e.st==="play")){beginRound(e.r,e.co,false);break;}}}
+  syncHostCfg();
 }
+// followers take team settings from the player who started this round
+function syncHostCfg(){if(mode!=="online"||!me||hostRound===round||phase==="lobby")return;
+  const h=[...remotes.values()].find(e=>e.hsR&&e.hsR===round);if(!h)return;
+  const on=h.cf?h.cf[2]|0:0,mp=new Map((h.tmList||[]).map(q=>[String(q[0]),q[1]|0]));
+  const changed=on!==teamOn||mp.size!==teamMap.size;teamOn=on;teamMap=mp;if(changed&&teamOn){applyTeamColors();const k=teamOf(me);if(k>=0)flash("あなたは "+TEAM_NAME[k]+"！",2200);}}
+function entState(e,t){return{inv:[e.item,...(e.stock||[])].filter(Boolean).map(x=>[x.k,x.n]),gh:t<(e.ghostUntil||0)?1:0,ia:t<(e.iceUntil||0)?1:0,is:e.iceSeq||0,kg:t<(e.pouchUntil||0)?1:0,fz:t<(e.frozenUntil||0)?1:0,
+    lt:e.ltTarget?[e.ltTarget,e.ltN||0]:0,cl:clones.filter(c=>c.owner===e.id).map(c=>[Math.round(c.x),Math.round(c.y),Math.round(c.a*100)/100,c.b,c.h,c.cloneUntil>t?1:0]),
+    n:e.name,c:e.color,sk:e.skin||"dog",it:e.item?[e.item.k,e.item.n]:0,sr:t<(e.star||0)?1:0,mr:e.mr||0,sh:e.shield?1:0,mg:t<(e.mag||0)?1:0,jp:t<(e.jump||0)?1:0,ik:e.ik||0,
+    x:Math.round(e.x),y:Math.round(e.y),a:Math.round(e.a*100)/100,b:e.b,iv:t<e.inv,bo:t<e.boost||t<(e.dashUntil||0),
+    dr:e.drifting?driftLevel(e.driftT):0,ds:e.drifting?e.dsign:0,
+    pj:e.pj.map(p=>[p.id,Math.round(p.x),Math.round(p.y),Math.round(p.vx),Math.round(p.vy),p.k||"spike"]),h:e.h};}
 function pushPresence(){
   if(mode!=="online"||!nroom||!me)return;
-  const t=now(),st=phase==="cd"?"cd":phase==="play"?"play":phase==="over"?"over":"lobby";
-  nroom.presence({inv:[me.item,...(me.stock||[])].filter(Boolean).map(x=>[x.k,x.n]),gh:t<(me.ghostUntil||0)?1:0,ia:t<(me.iceUntil||0)?1:0,is:me.iceSeq||0,kg:t<(me.pouchUntil||0)?1:0,fz:t<(me.frozenUntil||0)?1:0,
-    lt:me.ltTarget?[me.ltTarget,me.ltN||0]:0,cl:clones.filter(c=>c.owner===me.id).map(c=>[Math.round(c.x),Math.round(c.y),Math.round(c.a*100)/100,c.b,c.h,c.cloneUntil>t?1:0]),
-    n:me.name,c:me.color,sk:me.skin||"dog",it:me.item?[me.item.k,me.item.n]:0,sr:t<(me.star||0)?1:0,mr:me.mr||0,sh:me.shield?1:0,mg:t<(me.mag||0)?1:0,jp:t<(me.jump||0)?1:0,ik:me.ik||0,r:round,st,x:Math.round(me.x),y:Math.round(me.y),a:Math.round(me.a*100)/100,b:me.b,iv:t<me.inv,bo:t<me.boost||t<(me.dashUntil||0),
-    dr:me.drifting?driftLevel(me.driftT):0,ds:me.drifting?me.dsign:0,
-    pj:me.pj.map(p=>[p.id,Math.round(p.x),Math.round(p.y),Math.round(p.vx),Math.round(p.vy),p.k||"spike"]),h:me.h,co:courseId}).catch(()=>{});
+  const t=now(),st=phase==="cd"?"cd":phase==="play"?"play":phase==="over"?"over":"lobby",host=hostRound&&hostRound===round&&phase!=="lobby";
+  const o=entState(me,t);Object.assign(o,{r:round,st,co:courseId,hs:host?1:0,cf:host?[bots.length,onlineLv,teamOn]:0,tm:host&&teamOn?[...teamMap]:0,
+    bt:host?bots.map(b=>Object.assign(entState(b,t),{id:b.id})):0});
+  nroom.presence(o).catch(()=>{});
 }
-function leaveOnline(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];if(nroom){nroom.leave().catch(()=>{});nroom=null;}remotes.clear();myPeer=null;}
-function toLobby(){phase="lobby";show("lobby");renderLobby();pushPresence();}
+function leaveOnline(){unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];if(nroom){nroom.leave().catch(()=>{});nroom=null;}remotes.clear();remoteBots.clear();hostRound=0;myPeer=null;}
+function toLobby(){phase="lobby";bots=[];clones=[];hostRound=0;show("lobby");renderLobby();pushPresence();}
 function renderLobby(){
   const list=[{name:me.name,color:me.color,you:true},...[...remotes.values()].map(e=>({name:e.name,color:e.color,st:e.st}))];
   $("plist").innerHTML=list.map(p=>`<li><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.you?'<span class="tag y">あなた</span>':(p.st==="play"||p.st==="cd")?'<span class="tag y">対戦中</span>':'<span class="tag">待機中</span>'}</li>`).join("");
-  const n=list.length;$("startBtn").disabled=n<2;
-  $("lobbyNote").textContent=n<2?"友達に同じ合言葉を入れてもらってください。2人以上そろったらスタートできます。":`${n}人そろいました。だれかがスタートを押すと全員はじまります。`;
+  const n=list.length;$("startBtn").disabled=n<2&&onlineCpu===0;
+  const cpuTxt=onlineCpu?`＋CPU ${onlineCpu}人（Lv${onlineLv}）`:"CPUなし";const tmTxt=["個人戦","チーム戦（赤vs青）","みんな vs CPU"][onlineTeam];
+  $("lobbyNote").textContent=(n<2&&onlineCpu===0?"友達に同じ合言葉を入れてもらってください。2人以上そろうか、CPUを1人以上にするとスタートできます。":`${n}人 ${cpuTxt}・${tmTxt}。スタートを押した人の設定で全員はじまります。`);
 }
 
 // ---------- rounds ----------
-function beginRound(r,co){
+function makeBots(n,lv,prefix){const pal=COLORS.filter(c=>c!==myColor),others=Object.keys(CHARS).filter(k=>k!==myChar);
+  return CPU_NAMES.slice(0,n).map((nm,i)=>{const b=makeEnt(prefix+i,nm,pal[(i*2)%pal.length],true,true);b.skin=others[i%others.length];b.lv=lv;return b;});}
+function beginRound(r,co,host){
   courseId=COURSES[co]?co:(COURSES[courseId]?courseId:"arena");loadCourse(courseId);
   round=r;phase="cd";phaseAt=now();show(null);$("hint").hidden=false;
   $("face").hidden=true;
   clones=[];remoteClones.clear();
   setupBoxes(mode==="test");for(const bx of BOXES){bx.on=true;bx.back=0;}
-  if(mode==="online"){me.name=myName();me.color=myColor;const ids=[me.id,...[...remotes.values()].map(e=>e.id)].sort();spawn(me,Math.max(0,ids.indexOf(me.id)));}
-  else{spawn(me,0);bots.forEach((b,i)=>spawn(b,i+1));}
+  if(mode==="online"){me.name=myName();me.color=myColor;const ids=[me.id,...[...remotes.values()].map(e=>e.id)].sort();spawn(me,Math.max(0,ids.indexOf(me.id)));
+    hostRound=host?r:0;
+    if(host){bots=makeBots(onlineCpu,onlineLv,me.id+"~cpu");bots.forEach((b,i)=>spawn(b,ids.length+i));
+      teamOn=(onlineTeam===2&&!bots.length)?1:onlineTeam;teamMap=buildTeams(ids,bots.map(b=>b.id),teamOn);}
+    else{bots=[];teamOn=0;teamMap=new Map();}}
+  else{spawn(me,0);bots.forEach((b,i)=>spawn(b,i+1));teamOn=mode==="solo"?soloTeam:0;teamMap=buildTeams([me.id],bots.map(b=>b.id),teamOn);}
+  applyTeamColors();if(teamOn&&teamOf(me)>=0)flash("あなたは "+TEAM_NAME[teamOf(me)]+"！",2200);
   camInit=false;pushPresence();
 }
 function startSolo(){
   savePrefs();mode="solo";leaveOnline();
   me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;
-  const pal=COLORS.filter(c=>c!==myColor);
-  bots=CPU_NAMES.slice(0,cpuCount).map((n,i)=>makeEnt("cpu"+i,n,pal[(i*2)%pal.length],true,true));{const others=Object.keys(CHARS).filter(k=>k!==myChar);bots.forEach((b,i)=>{b.skin=others[i%others.length];b.lv=cpuLevel;});}
+  bots=makeBots(cpuCount,cpuLevel,"cpu");
   round=1;beginRound(1,pickedCourse);
 }
 function startTest(v){
@@ -743,7 +795,11 @@ function startTest(v){
 function finish(){
   phase="over";pushPresence();
   const rows=roundEnts().filter(e=>!e.clone).map(e=>({e,s:scoreOf(e.id)})).sort((a,b)=>(b.e.b-a.e.b)||(b.s-a.s));
-  $("resTitle").textContent=rows[0]&&rows[0].e===me?"優勝！":(me.b>0?"タイムアップ":"脱落…");
+  if(teamOn){const sc=[0,1].map(k=>{const m=rows.filter(r=>teamOf(r.e)===k);return{k,b:m.reduce((a,r)=>a+r.e.b,0),s:m.reduce((a,r)=>a+r.s,0)};});
+    const w=sc[0].b!==sc[1].b?(sc[0].b>sc[1].b?0:1):sc[0].s!==sc[1].s?(sc[0].s>sc[1].s?0:1):-1;
+    $("resTitle").textContent=w<0?"引き分け！":TEAM_NAME[w]+"の勝ち！"+(teamOf(me)===w?"🎉":"");
+    rows.sort((a,b)=>(teamOf(a.e)-teamOf(b.e))||(b.e.b-a.e.b)||(b.s-a.s));}
+  else $("resTitle").textContent=rows[0]&&rows[0].e===me?"優勝！":(me.b>0?"タイムアップ":"脱落…");
   $("resList").innerHTML=rows.map((r,i)=>`<li><span class="rk">${i+1}</span><span class="dot" style="background:${r.e.color}"></span><span>${esc(r.e.name)}${r.e===me?"（あなた）":""}</span><span class="pts">🎈${r.e.b}　${r.s}pt</span></li>`).join("");
   setTimeout(()=>{if(phase==="over")show("result");},1200);
 }
@@ -752,7 +808,7 @@ function goFull(){const d=document.documentElement;try{if(!document.fullscreenEl
 for(const id of ["joinBtn","soloBtn","cBtn","startBtn"])$(id).addEventListener("click",goFull);
 $("joinBtn").onclick=joinOnline;$("soloBtn").onclick=startSolo;$("cBtn").onclick=()=>{savePrefs();$("splashImg").src=ART[myChar].main;show(null);$("hud").hidden=true;$("mini").hidden=true;$("splash").hidden=false;};
 $("splash").onclick=()=>{$("splash").hidden=true;startTest("C");};
-$("startBtn").onclick=()=>{let mx=round;for(const e of remotes.values())mx=Math.max(mx,e.r||0);beginRound(mx+1,pickedCourse);};
+$("startBtn").onclick=()=>{let mx=round;for(const e of remotes.values())mx=Math.max(mx,e.r||0);beginRound(mx+1,pickedCourse,true);};
 $("leaveBtn").onclick=toMenu;$("toMenuBtn").onclick=toMenu;$("timer").addEventListener("click",()=>{if(mode==="test")toMenu();});
 $("againBtn").onclick=()=>{if(mode==="solo")startSolo();else toLobby();};
 
@@ -1467,10 +1523,11 @@ function frame(){
     stepClones(t,dt,go);
     for(const e of [me,...bots])stepProj(e,dt,t);
     if(go)for(const e of [me,...bots,...clones]){resolveHits(e,t);resolveIce(e,t);if(!e.clone)bearWatch(e,t);resolveRam(e,t);resolveMagnet(e,t);gainSteals(e);if(e.shield&&t>e.shieldUntil)e.shield=0;}
-    for(const e of remotes.values())for(const p of e.pj){p.x+=p.vx*dt;p.y+=p.vy*dt;}
+    for(const e of [...remotes.values(),...remoteBots.values()])for(const p of e.pj){p.x+=p.vx*dt;p.y+=p.vy*dt;}
     for(const e of allEnts()){if(e.b<e.prevB)popFx(e.rx,e.ry,e.color);e.prevB=e.b;}
     if(go&&mode!=="test"){const ents=roundEnts().filter(e=>!e.clone),alive=ents.filter(e=>e.b>0).length;
-      if(t>=endAt||(ents.length>=2&&alive<=1)||(mode==="solo"&&me.b<=0))finish();}
+      let over=ents.length>=2&&alive<=1;if(teamOn){const all=new Set(ents.map(teamOf)),live=new Set(ents.filter(e=>e.b>0).map(teamOf));over=all.size>=2&&live.size<=1;}
+      if(t>=endAt||over||(mode==="solo"&&me.b<=0))finish();}
     pushPresence();
   }
   for(const e of allEnts()){const k=e.local?1:Math.min(1,dt*14);e.rx+=(e.x-e.rx)*k;e.ry+=(e.y-e.ry)*k;e.ra+=angDiff(e.a,e.ra)*k;}
@@ -1568,6 +1625,12 @@ function frame(){
   b.onclick=()=>{cpuLevel=i;try{localStorage.setItem("fk-lv",i)}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));};wrap.appendChild(b);}}
 {const wrap=$("cpuNum");for(let i=1;i<=6;i++){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",i===cpuCount);b.textContent=i+"人";
   b.onclick=()=>{cpuCount=i;try{localStorage.setItem("fk-cn",i)}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));};wrap.appendChild(b);}}
+function pickRow(id,items,cur,key,set){const wrap=$(id);items.forEach(([v,label])=>{const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",v===cur);b.textContent=label;
+  b.onclick=()=>{set(v);try{localStorage.setItem(key,v)}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));if(phase==="lobby"&&me)renderLobby();};wrap.appendChild(b);});}
+pickRow("oCpuNum",[0,1,2,3,4,5,6].map(i=>[i,i+"人"]),onlineCpu,"fk-ocn",v=>onlineCpu=v);
+pickRow("oCpuLv",[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name]),onlineLv,"fk-olv",v=>onlineLv=v);
+pickRow("oTeam",[[0,"個人戦"],[1,"チーム戦（赤vs青）"],[2,"みんな vs CPU"]],onlineTeam,"fk-otm",v=>onlineTeam=v);
+pickRow("soloTm",[[0,"なし（個人戦）"],[1,"あり（赤vs青）"]],soloTeam,"fk-stm",v=>soloTeam=v);
 let pickedCourse="arena";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])pickedCourse=s.co;}catch(e){}
 {const wrap=$("courses");for(const k in COURSES){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",k===pickedCourse);b.textContent=COURSES[k].icon+" "+COURSES[k].name;
