@@ -202,6 +202,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div class="field"><label>キャラクター</label><div class="chars" id="chars"></div><p class="note" id="specNote"></p></div>
     <div class="field"><label>コース</label><div class="courses" id="courses"></div></div>
     <div class="field"><label>CPUレベル（CPU練習用）</label><div class="courses" id="cpuLv"></div></div>
+    <div class="field"><label>CPUの人数</label><div class="courses" id="cpuNum"></div></div>
     <div class="field"><label>風船の色</label><div class="colors" id="colors"></div></div>
     <div class="field"><label for="passIn">合言葉</label><input id="passIn" maxlength="24" placeholder="例：たこやき" autocomplete="off"></div>
     <button class="btn" id="joinBtn" type="button">合言葉でルームに入る</button>
@@ -317,7 +318,7 @@ const ITEM_ODDS={
   1:{spike:25,acorn:25,homing:25,bubble:10,ink:0,mirror:0,star:15}};
 function rollItem(e){const odds=ITEM_ODDS[clamp((e&&e.b)||3,1,3)];let tot=0;for(const k in odds)tot+=odds[k];let r=Math.random()*tot;
   for(const k in odds){r-=odds[k];if(r<0&&odds[k]>0)return{k,n:ITEMS[k].n||1};}return{k:"spike",n:ITEMS.spike.n};}
-const CPU_NAMES=["ポン太","ミルク","ガブ"];
+const CPU_NAMES=["ポン太","ミルク","ガブ","モモ","コタロウ","ルナ"];
 const DRIFT_COL=["#ffffff","#4fc3ff","#ff9a2e","#c45cff"];
 
 const scr={menu:$("menu"),lobby:$("lobby"),result:$("result")};
@@ -364,8 +365,8 @@ const SPECS={
   dog:{name:"おかわり",icon:"🍖",desc:"持っているアイテム全部を、使い切ったらもう1回おかわりできる"},
   cat:{name:"猫抜け",icon:"👻",dur:10000,desc:"10秒間、障害物をすり抜け＋ポップマインも効かない"},
   rabbit:{name:"大家族",icon:"🐰",dur:60000,desc:"自分そっくりの分身を3体、1分間出す（風船の数も同じ）"},
-  penguin:{name:"アイスエイジ",icon:"❄️",dur:3000,desc:"3秒間、まわりを氷づけにする全方位アタック＋飛んでくる攻撃も凍らせる"},
-  bear:{name:"報復の執着",icon:"🐻",dur:120000,desc:"2分以内に攻撃されたら、1分間ストーカーミサイル撃ち放題＋速度1.1倍（周りにはバレない）"},
+  penguin:{name:"アイスエイジ",icon:"❄️",dur:40000,desc:"40秒間、まわりを氷づけにする全方位アタック＋飛んでくる攻撃も凍らせる"},
+  bear:{name:"報復の執着",icon:"🐻",dur:40000,desc:"40秒以内に攻撃されたら、1分間ストーカーミサイル撃ち放題＋速度1.1倍（周りにはバレない）"},
   squirrel:{name:"電光石火",icon:"⚡",dur:10000,desc:"10秒間、スピード2.5倍"},
   lion:{name:"王の徴収",icon:"👑",desc:"スターを持っている相手のアイテムを全部うばう（スターを持つ相手がいる時だけ）"},
   kangaroo:{name:"袋隠し",icon:"👜",dur:30000,desc:"30秒間、アイテムボックスが自分にしか見えず自分しか取れない"}};
@@ -392,7 +393,7 @@ function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e
     case"cat":e.ghostUntil=t+S.dur;if(mine)flash("👻 猫抜け！10秒すり抜け",1500);break;
     case"rabbit":spawnClones(e,t);if(mine)flash("🐰 大家族！分身が3体出た！",1500);break;
     case"penguin":e.iceUntil=t+S.dur;e.iceStart=t;e.iceSeq=(e.iceSeq||0)+1;if(mine)flash("❄️ アイスエイジ！",1300);break;
-    case"bear":e.bearArm=t+S.dur;e.bearPrevB=e.b;if(mine)flash("🐻 報復の執着…（2分以内に攻撃されたら発動）",1800);break;
+    case"bear":e.bearArm=t+S.dur;e.bearPrevB=e.b;if(mine)flash("🐻 報復の執着…（40秒以内に攻撃されたら発動）",1800);break;
     case"squirrel":e.dashUntil=t+S.dur;if(mine)flash("⚡ 電光石火！",1300);break;
     case"lion":{const v=starHolders(e)[0];if(!v)return false;let inv;
       if(v.local){inv=[v.item,...(v.stock||[])].filter(Boolean).map(x=>({k:x.k,n:x.n}));v.item=null;v.stock=[];if(v===me)flash("👑 "+e.name+" に全アイテムを徴収された！",2200);}
@@ -535,7 +536,8 @@ const CPU_LV={1:{name:"よわい",spd:.76,wob:.6,gain:1.3,tol:.45,cd:3,lead:0,sp
   3:{name:"つよい",spd:1,wob:.15,gain:2.2,tol:.16,cd:1,lead:1,spec:1,range:1},
   4:{name:"めっちゃ強い",spd:1.06,wob:.07,gain:2.6,tol:.12,cd:.7,lead:1.1,spec:1.6,range:1.15},
   5:{name:"鬼",spd:1.12,wob:.02,gain:3,tol:.09,cd:.45,lead:1.2,spec:2.5,range:1.3}};
-let cpuLevel=3;try{const v=+localStorage.getItem("fk-lv");if(CPU_LV[v])cpuLevel=v;}catch(e){}
+let cpuLevel=3,cpuCount=3;try{const v=+localStorage.getItem("fk-cn");if(v>=1&&v<=6)cpuCount=v;}catch(e){}
+try{const v=+localStorage.getItem("fk-lv");if(CPU_LV[v])cpuLevel=v;}catch(e){}
 function botThink(b,t,dt){
   if(b.b<=0)return[0,false];const L=CPU_LV[b.lv||3];
   let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0)continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
@@ -729,7 +731,7 @@ function startSolo(){
   savePrefs();mode="solo";leaveOnline();
   me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;
   const pal=COLORS.filter(c=>c!==myColor);
-  bots=CPU_NAMES.map((n,i)=>makeEnt("cpu"+i,n,pal[(i*2)%pal.length],true,true));{const others=Object.keys(CHARS).filter(k=>k!==myChar);bots.forEach((b,i)=>{b.skin=others[i%others.length];b.lv=cpuLevel;});}
+  bots=CPU_NAMES.slice(0,cpuCount).map((n,i)=>makeEnt("cpu"+i,n,pal[(i*2)%pal.length],true,true));{const others=Object.keys(CHARS).filter(k=>k!==myChar);bots.forEach((b,i)=>{b.skin=others[i%others.length];b.lv=cpuLevel;});}
   round=1;beginRound(1,pickedCourse);
 }
 function startTest(v){
@@ -1563,6 +1565,8 @@ function frame(){
 }
 {const wrap=$("cpuLv");for(let i=1;i<=5;i++){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",i===cpuLevel);b.textContent="Lv"+i+" "+CPU_LV[i].name;
   b.onclick=()=>{cpuLevel=i;try{localStorage.setItem("fk-lv",i)}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));};wrap.appendChild(b);}}
+{const wrap=$("cpuNum");for(let i=1;i<=6;i++){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",i===cpuCount);b.textContent=i+"人";
+  b.onclick=()=>{cpuCount=i;try{localStorage.setItem("fk-cn",i)}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));};wrap.appendChild(b);}}
 let pickedCourse="arena";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])pickedCourse=s.co;}catch(e){}
 {const wrap=$("courses");for(const k in COURSES){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",k===pickedCourse);b.textContent=COURSES[k].icon+" "+COURSES[k].name;
