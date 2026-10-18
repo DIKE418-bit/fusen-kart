@@ -101,6 +101,10 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 .pbtn{pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;border:0;border-radius:50%;font-family:var(--display);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;cursor:pointer;-webkit-user-select:none;user-select:none}
 #itemBtn{grid-column:2;grid-row:1/3;width:104px;height:104px;background:var(--pop);color:#fff;font-size:.95rem;box-shadow:0 6px 0 #c42c55,0 0 0 5px rgba(255,255,255,.3)}
 #itemBtn b{font-size:1.9rem}
+#stock{position:absolute;right:20px;bottom:calc(100% + 10px);display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none}
+#stock div{width:50px;height:50px;border-radius:50%;background:rgba(255,248,239,.94);border:3px solid var(--pop);display:flex;align-items:center;justify-content:center;position:relative;font-size:1.5rem;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+#stock div+div{width:42px;height:42px;font-size:1.2rem;opacity:.85}
+#stock div i{position:absolute;right:-4px;bottom:-4px;background:var(--ink);color:#fff;font-style:normal;font-family:var(--body);font-weight:900;font-size:.62rem;border-radius:99px;padding:1px 5px}
 #itemBtn.empty{background:#6b6394;box-shadow:0 6px 0 #403a63,0 0 0 5px rgba(255,255,255,.2)}
 #driftBtn{grid-column:1;grid-row:2;width:88px;height:88px;background:var(--sky);color:#fff;font-size:.88rem;box-shadow:0 6px 0 #1f73c2,0 0 0 5px rgba(255,255,255,.3);margin-bottom:-4px}
 #driftBtn.held{transform:translateY(4px);box-shadow:0 2px 0 #1f73c2,0 0 0 6px rgba(255,201,60,.8)}
@@ -164,6 +168,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
   <div class="hint" id="hint">左側を左右にスライドでハンドル<br>ドリフトを押しながら曲がる</div>
   <div class="pad">
     <button class="pbtn" id="driftBtn" type="button">ドリ<br>フト</button>
+    <div id="stock"></div>
     <button class="pbtn empty" id="itemBtn" type="button"><b id="btnIc">・</b><i id="btnN"></i><small id="btnName">アイテム</small></button>
     <div class="backtip">↓スワイプで後ろ</div>
     <div id="spd">0 km/h</div>
@@ -306,10 +311,13 @@ function allEnts(){const a=[me,...bots];if(mode==="online")for(const e of remote
 function roundEnts(){return allEnts().filter(e=>e.local||e.r===round);}
 function scoreOf(id){let s=0;for(const e of allEnts()){if(e.id===id)continue;for(const h of e.h)if(h[0]===id&&h[2]===1)s++;}return s;}
 function spawn(e,i){const s=SPAWNS[i%SPAWNS.length];e.x=e.rx=s[0];e.y=e.ry=s[1];e.a=e.ra=Math.atan2(H/2-s[1],W/2-s[0]);
-  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,gained:new Set(),star:0,mirrorUntil:0});}
+  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,gained:new Set(),star:0,mirrorUntil:0});}
 
 // ---------- physics ----------
+const MAX_STOCK=3;
+function itemCount(e){return(e.item?1:0)+((e.stock&&e.stock.length)||0);}
 function drive(e,steer,dHeld,dt,t,go){
+  if(!e.item&&e.stock&&e.stock.length)e.item=e.stock.shift();
   if(t<(e.mirrorUntil||0))steer=-steer;
   const boosting=t<e.boost,max=boosting?VBOOST:VMAX;
   if(e.b<=0){e.v*=Math.pow(.05,dt);e.drifting=false;}
@@ -335,8 +343,8 @@ function drive(e,steer,dHeld,dt,t,go){
   if(e.b>0&&go)for(const dp of DASH){const dx=e.x-dp.x,dy=e.y-dp.y,c=Math.cos(-dp.a),s=Math.sin(-dp.a),lx=dx*c-dy*s,ly=dx*s+dy*c;
     if(Math.abs(lx)<42&&Math.abs(ly)<26&&e.boost<t+900){e.boost=t+1100;}}
   
-  for(const bx of BOXES){if(bx.on&&e.b>0&&!e.item&&Math.hypot(e.x-bx.x,e.y-bx.y)<R+22){bx.on=false;bx.back=t+(mode==="test"?2000:6000);popFx(bx.x,bx.y,"#ffffff",24);
-    e.item=bx.fixed?{k:bx.fixed,n:ITEMS[bx.fixed].n||1}:rollItem();e.lastPick=e.item.k;e.regen=0;if(e===me){const d=ITEMS[e.item.k];flash(d.name+(e.item.n>1?" ×"+e.item.n:""));}}}
+  for(const bx of BOXES){if(bx.on&&e.b>0&&itemCount(e)<MAX_STOCK&&Math.hypot(e.x-bx.x,e.y-bx.y)<R+22){bx.on=false;bx.back=t+(mode==="test"?2000:6000);popFx(bx.x,bx.y,"#ffffff",24);
+    const got=bx.fixed?{k:bx.fixed,n:ITEMS[bx.fixed].n||1}:rollItem();if(!e.stock)e.stock=[];if(e.item)e.stock.push(got);else e.item=got;e.lastPick=got.k;e.regen=0;if(e===me){const d=ITEMS[got.k];flash(d.name+(got.n>1?" ×"+got.n:"")+(itemCount(e)>1?"（ストック"+itemCount(e)+"/3）":""));}}}
 }
 function useItem(e,t,back){
   if(e.b<=0||!e.item||t<e.spin||phase!=="play")return false;
@@ -1124,6 +1132,7 @@ function frame(){
     const rem=phase==="play"?Math.max(0,endAt-t):ROUND_MS,s=Math.ceil(rem/1000);$("timer").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
     const it=me.item,ic=!it?"・":(ITEMS[it.k]?ITEMS[it.k].icon:"・");
     $("slot").classList.toggle("empty",!it);$("slotIc").textContent=ic;$("slotN").textContent=it&&it.n>1?"×"+it.n:"";
+    {const st=me.stock||[],key=st.map(x=>x.k+x.n).join(",");const box=$("stock");if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map(x=>`<div>${ITEMS[x.k]?ITEMS[x.k].icon:"?"}${x.n>1?"<i>×"+x.n+"</i>":""}</div>`).join("");}}
     iB.classList.toggle("empty",!it);$("btnIc").textContent=ic;$("btnN").textContent=it&&it.n>1?"×"+it.n:"";$("btnName").textContent=it&&ITEMS[it.k]?ITEMS[it.k].name:"アイテム";
     $("ink").classList.toggle("on",t<inkUntil);$("mirrorFx").classList.toggle("on",t<(me.mirrorUntil||0));
     {const A=ART[me.skin]||ART.dog,f=({penguin:[0,1,4,3,2]}[me.skin]||[0,1,2,3,4])[me.b<=0||t<me.inv?2:me.drifting?3:t<me.boost?4:t-(me.lastThrow||-1e9)<700?1:0],key=(me.skin||"dog")+f,fi=$("faceImg");if(fi.dataset.f!==key){fi.dataset.f=key;fi.dataset.fbTried="";fi.src=A["f"+f];}}
