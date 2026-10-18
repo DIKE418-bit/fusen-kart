@@ -249,7 +249,7 @@ const ITEMS={
   spike:{name:"バウンドキャノン",icon:"💫",n:3,w:40,hold:true,kind:"proj",speed:520,back:280,life:3800,bounce:true,hit:"pop",face:true,mesh:()=>buildCannon()},
   acorn:{name:"ポップマイン",icon:"💥",n:2,w:25,hold:true,kind:"proj",trap:true,life:20000,bounce:false,hit:"pop",boom:true,r:14,mesh:()=>buildMine()},
   homing:{name:"ストーカーミサイル",icon:"🎯",n:1,w:12,hold:true,kind:"proj",speed:400,back:400,life:6000,bounce:true,die:true,lock:true,face:true,hit:"pop",step:(p,o,dt,t)=>homingStep(p,o,dt,t),mesh:()=>buildMissile()},
-  bubble:{name:"バリア泡",icon:"🫧",n:1,w:10,use:(e,t)=>{e.shield=1;e.shieldUntil=t+15000;}},
+  bubble:{name:"バリバリバリア",icon:"🛡️",n:1,w:10,use:(e,t)=>{e.shield=1;e.shieldUntil=t+120000;if(e===me)flash("🛡️ バリバリバリア！（攻撃されなければ2分）",1600);}},
   ink:{name:"インク雲",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;if(mode!=="online")localInk(e,t);}},
   mirror:{name:"鏡の呪い",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(mode!=="online")localMirror(e,t);}},
   star:{name:"スター",icon:"🌟",n:1,w:2,use:(e,t)=>{e.star=t+15000;e.item={k:"starshot",n:3};if(e===me)flash("🌟 スター！15秒無敵＋弾が障害物をすり抜け");return "keep";}},
@@ -377,7 +377,7 @@ function resolveMagnet(L,t){
   if(L.b<=0||t<L.jump||t<=L.inv)return;
   for(const E of allEnts()){if(E===L||E.b<=0)continue;const on=E.local?t<(E.mag||0):E.mgFlag;if(!on)continue;
     if(Math.hypot(E.x-L.x,E.y-L.y)<R*2+8){
-      if(L.shield){L.shield=0;L.inv=t+800;if(L===me)flash("🫧 バリアで防いだ！");return;}
+      if(L.shield){L.shield=0;L.inv=t+800;barriFx(L.x,L.y);if(L===me)flash("⚡ BARI！バリアで防いだ！");return;}
       L.stealN=(L.stealN||0)+1;L.h.push([E.id,-L.stealN,1]);if(L.h.length>8)L.h.shift();L.b--;L.inv=t+1600;L.v*=.5;
       if(L===me)flash("🧲 "+E.name+" に風船をうばわれた！",2000);return;}}
 }
@@ -396,7 +396,7 @@ function resolveHits(L,t){
       if(Math.hypot(p.x-L.x,p.y-L.y)<R+(def.r||PR)&&t>L.inv&&!L.h.some(h=>h[0]===E.id&&h[1]===p.id)){
         if(!def.trap&&L.item&&ITEMS[L.item.k]&&ITEMS[L.item.k].hold&&((p.x-L.x)*Math.cos(L.a)+(p.y-L.y)*Math.sin(L.a))<-4){
           L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();if(--L.item.n<=0)L.item=null;popFx(L.x-Math.cos(L.a)*34,L.y-Math.sin(L.a)*34,"#ffffff",14);if(L===me)flash("🛡️ 後ろのアイテムでガード！");continue;}
-        if(L.shield){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();L.shield=0;L.inv=t+700;popFx(L.x,L.y,"#bfefff",30);if(L===me)flash("🫧 バリアで防いだ！");continue;}
+        if(L.shield){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();L.shield=0;L.inv=t+700;barriFx(L.x,L.y);if(L===me)flash("⚡ BARI！バリアで防いだ！");continue;}
         if(def.hit==="spin"){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();L.spin=t+950;L.v*=.25;L.inv=t+500;L.drifting=false;if(L===me)flash("🌰 "+(self?"自分":E.name)+" のドングリ！",1600);continue;}
         L.h.push([E.id,p.id,1]);if(L.h.length>8)L.h.shift();L.b--;L.inv=t+1600;L.spin=t+(def.boom?950:700);L.v*=.2;L.boost=0;L.drifting=false;
         if(def.boom){boomFx(p.x,p.y);if(L===me)flash(self?(L.b>0?"💥 自分のポップマインを踏んだ！":"💥 自分のポップマインで脱落…"):(L.b>0?"💥 "+E.name+" のポップマイン！":"💥 "+E.name+" のポップマインで脱落…"),2200);if(L===me&&navigator.vibrate)try{navigator.vibrate([60,40,90])}catch(e){}if(L.b<=0)return;continue;}
@@ -970,7 +970,20 @@ function setBoards(on){
 function labelSprite(text){const tex=canvasTex(256,64,(g,w,h)=>{g.font="900 34px 'Zen Maru Gothic',sans-serif";g.textAlign="center";g.textBaseline="middle";
     g.lineWidth=8;g.strokeStyle="rgba(27,22,64,.9)";g.strokeText(text,w/2,h/2);g.fillStyle="#fff8ef";g.fillText(text,w/2,h/2);});
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthWrite:false}));s.scale.set(64,16,1);return s;}
-const bubbleGeo=new THREE.SphereGeometry(36,24,16),bubbleMat=new THREE.MeshStandardMaterial({color:0x9fe8ff,transparent:true,opacity:.42,roughness:.05,metalness:.1,emissive:0x5fd0ff,emissiveIntensity:.6,depthWrite:false,side:THREE.DoubleSide});
+const hexTex=canvasTex(1024,512,(g,w,h)=>{
+  const gr=g.createLinearGradient(0,0,w,0);gr.addColorStop(0,"rgba(120,190,255,.22)");gr.addColorStop(.5,"rgba(200,150,255,.22)");gr.addColorStop(1,"rgba(120,190,255,.22)");g.fillStyle=gr;g.fillRect(0,0,w,h);
+  const r=34,hw=Math.sqrt(3)*r;
+  for(let row=-1;row*r*1.5<h+r;row++)for(let col=-1;col*hw<w+hw;col++){const cx=col*hw+(row%2?hw/2:0),cy=row*r*1.5;
+    g.beginPath();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3;g.lineTo(cx+Math.cos(a)*r*.94,cy+Math.sin(a)*r*.94);}g.closePath();
+    const q=Math.random();if(q<.18){g.fillStyle="rgba(255,150,230,.28)";g.fill();}else if(q<.36){g.fillStyle="rgba(150,220,255,.3)";g.fill();}
+    g.strokeStyle="rgba(225,245,255,.95)";g.lineWidth=3.5;g.stroke();}
+  const star=(x,y,R,c)=>{g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?R*.45:R;g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);}g.closePath();g.fillStyle=c;g.fill();};
+  for(let i=0;i<26;i++)star(Math.random()*w,Math.random()*h,8+Math.random()*14,i%3?"rgba(255,255,255,.85)":"rgba(255,226,90,.9)");});
+hexTex.wrapS=THREE.RepeatWrapping;
+const bubbleGeo=new THREE.SphereGeometry(40,36,20,0,Math.PI*2,0,Math.PI*.58),
+  bubbleMat=new THREE.MeshBasicMaterial({map:hexTex,transparent:true,opacity:.85,depthWrite:false,side:THREE.DoubleSide,toneMapped:false});
+function barriFx(x,z){popFx(x,z,"#bfe8ff",16);popFx(x,z,"#ff9be6",30);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xbfe8ff,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));
+  s.position.set(x,26,z);scene.add(s);const t0=now(),step=()=>{const k=(now()-t0)/320;if(k>=1){scene.remove(s);s.material.dispose();return;}s.scale.setScalar(60+k*120);s.material.opacity=1-k;requestAnimationFrame(step);};step();}
 const magGeo=new THREE.TorusGeometry(7,2.6,10,20,Math.PI),magMat=new THREE.MeshStandardMaterial({color:0xe23434,roughness:.35,metalness:.3}),magTipGeo=new THREE.BoxGeometry(5.2,4,5.2),magTipMat=new THREE.MeshStandardMaterial({color:0xdddddd,metalness:.8,roughness:.25});
 SHARED.add(bubbleMat);SHARED.add(magMat);SHARED.add(magTipMat);
 function buildKart(e,isMe){
@@ -1022,7 +1035,7 @@ function buildKart(e,isMe){
   let label=null;if(!isMe){label=labelSprite(e.name);label.position.y=96;root.add(label);}
   const held=new THREE.Group();root.add(held);
   const aura=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xfff07a,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));aura.scale.set(110,90,1);aura.position.y=22;aura.visible=false;root.add(aura);
-  const bubble=new THREE.Mesh(bubbleGeo,bubbleMat);bubble.position.y=24;bubble.visible=false;root.add(bubble);
+  const bubble=new THREE.Mesh(bubbleGeo,bubbleMat);bubble.position.y=-2;bubble.renderOrder=5;bubble.visible=false;root.add(bubble);
   const mag=new THREE.Group();mag.position.set(-4,78,0);mag.visible=false;root.add(mag);
   {const u=new THREE.Mesh(magGeo,magMat);u.rotation.z=Math.PI;mag.add(u);for(const sd of [-1,1]){const tip=new THREE.Mesh(magTipGeo,magTipMat);tip.position.set(sd*7,0,0);mag.add(tip);}}
   scene.add(root);
@@ -1121,8 +1134,10 @@ function iconModel(k,color){
   if(k==="homing"){const g=take(buildMissile());g.children.filter(c=>c.isSprite).forEach(c=>g.remove(c));return g;}
   if(k==="starshot")return take(buildStarShot());
   const g=new THREE.Group();
-  if(k==="bubble"){const b=new THREE.Mesh(new THREE.SphereGeometry(13,24,16),new THREE.MeshStandardMaterial({color:0x3fb4ff,transparent:true,opacity:.8,roughness:.05,metalness:.2,emissive:0x1f7fd0,emissiveIntensity:.45}));g.add(b);
-    const h=new THREE.Mesh(new THREE.SphereGeometry(3.4,12,8),new THREE.MeshBasicMaterial({color:0xffffff}));h.position.set(-5,6,8);h.scale.set(1,1.4,.6);g.add(h);}
+  if(k==="bubble"){const core=new THREE.Mesh(new THREE.SphereGeometry(8,24,16),T("#2346c8",{roughness:.3,metalness:.3}));g.add(core);
+    const sh=new THREE.Shape();for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,r=i%2?3:7;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
+    const st=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:2,bevelEnabled:false}),T("#ffd23a",{emissive:new THREE.Color("#6a4a00"),emissiveIntensity:.5}));st.position.z=6.5;g.add(st);
+    const dome=new THREE.Mesh(new THREE.SphereGeometry(13.5,32,20),new THREE.MeshBasicMaterial({map:hexTex,transparent:true,opacity:.9,depthWrite:false,side:THREE.DoubleSide,toneMapped:false}));g.add(dome);}
   if(k==="ink"){const m=new THREE.MeshStandardMaterial({color:0x1d1430,roughness:.35,metalness:.1});
     [[0,0,0,10],[-9,-2,1,7],[9,-1,1,7.5],[-4,7,2,6.5],[5,6,2,6]].forEach(([x,y,z,r])=>{const b=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);b.position.set(x,y,z);g.add(b);});
     for(const sd of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(2.2,10,8),new THREE.MeshBasicMaterial({color:0xffffff}));e.position.set(sd*3.6,1.5,9.2);g.add(e);}}
@@ -1196,7 +1211,7 @@ function frame(){
     seen.add(e);
     {const ja=e.local?(t<e.jump?(t-e.jumpAt)/1150:-1):(e.jpFlag?Math.min(1,(t-(e.jumpAtLocal||t))/1150):-1);o.root.position.set(e.rx,ja>=0?Math.sin(ja*Math.PI)*46:0,e.ry);}
     o.root.rotation.y=-e.ra;
-    o.bubble.visible=!!e.shield&&e.b>0;if(o.bubble.visible)o.bubble.scale.setScalar(1+Math.sin(t/180)*.04);
+    o.bubble.visible=!!e.shield&&e.b>0&&!(e.local&&e.shieldUntil-t<6000&&Math.floor(t/150)%2===0);if(o.bubble.visible){{const k=1+Math.sin(t/180)*.03;o.bubble.scale.set(k,k*1.55,k);}o.bubble.rotation.y=-o.root.rotation.y+t/2600;}
     o.mag.visible=(e.local?t<(e.mag||0):e.mgFlag)&&e.b>0;if(o.mag.visible)o.mag.rotation.y=t/300;
     {const hk=e.local?(e.item&&ITEMS[e.item.k]&&ITEMS[e.item.k].hold?e.item.k:null):e.heldK,hn=e.local?(e.item?Math.min(3,e.item.n):0):e.heldN,key=hk&&e.b>0?hk+hn:"";
       if(key!==o.heldKey){o.heldKey=key;while(o.held.children.length){const c=o.held.children.pop();c.traverse(n=>{if(n.material&&!SHARED.has(n.material))n.material.dispose();});}
