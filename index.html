@@ -277,9 +277,12 @@ const ITEMS={
   ink:{name:"お邪魔インク",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;localInk(e,t);}},
   mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&(mode!=="test"||bots.length))flash("🪞 ミラーマジック発動！みんなのハンドルが4秒逆に！",1600);localMirror(e,t);}},
   star:{name:"スター",icon:"🌟",n:1,w:2,use:(e,t)=>{e.star=t+STAR_MS;e.starStock=(e.stock||[]).slice(0,2);e.stock=[];e.starCd=[0,0];if(e===me)flash(e.starStock.length?"🌟 スター！無敵＋体当たりアタック＋上のアイテム撃ち放題！":"🌟 スター！無敵＋体当たりでアタック！",1800);}},
+  heart:{name:"ハートバルーン",icon:"💗",n:1,w:2,use:(e,t)=>{const n=e.heartN||0;
+    if(e.b>0&&e.b<MAX_BALLOONS&&n<HEART_MAX){e.b++;e.prevB=e.b;e.heartN=n+1;popFx(e.x,e.y,"#ff7cb0",18);if(e===me)flash("💗 ハートバルーン！風船が1個増えた（このゲームあと"+(HEART_MAX-e.heartN)+"回）",1800);}
+    else if(e===me)flash(n>=HEART_MAX?"💗 このゲームではもう3回使ったので増えない…":"💗 風船は6個がMAX！これ以上は増えない",1800);}},
   starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:540,back:300,life:4000,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
 };
-let mirrorFx=0;const MIRROR_MS=4000;
+let mirrorFx=0;const MAX_BALLOONS=6,HEART_MAX=3;const MIRROR_MS=4000;
 function localMirror(src,t){if(mode==="test"&&me&&!bots.length){me.mirrorUntil=t+MIRROR_MS;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;o.mirrorUntil=t+MIRROR_MS;if(o===me){mirrorFx=t+MIRROR_MS;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
 // ---------- walls (axis-aligned rectangles [x1,y1,x2,y2]) ----------
 let WALLS=[];
@@ -319,10 +322,11 @@ function homingStep(p,owner,dt,t){if(t-p.t<180)return;let best=allEnts().find(o=
   p.vx=Math.cos(na)*sp;p.vy=Math.sin(na)*sp;}
 // item odds (%) by how many balloons the picker has left: fewer balloons -> stronger items
 const ITEM_ODDS={
-  3:{spike:25,acorn:25,homing:15,bubble:10,ink:10,mirror:10,star:5},
-  2:{spike:25,acorn:25,homing:20,bubble:10,ink:5,mirror:5,star:10},
-  1:{spike:25,acorn:25,homing:25,bubble:10,ink:0,mirror:0,star:15}};
-function rollItem(e){const odds=ITEM_ODDS[clamp((e&&e.b)||3,1,3)];let tot=0;for(const k in odds)tot+=odds[k];let r=Math.random()*tot;
+  4:{spike:28,acorn:27,homing:12,bubble:8,ink:10,mirror:10,star:3,heart:2}, // 4-6 balloons (after Heart Balloons)
+  3:{spike:24,acorn:23,homing:15,bubble:10,ink:10,mirror:10,star:5,heart:3},
+  2:{spike:22,acorn:22,homing:20,bubble:10,ink:5,mirror:5,star:10,heart:6},
+  1:{spike:21,acorn:20,homing:25,bubble:10,ink:0,mirror:0,star:15,heart:9}};
+function rollItem(e){const odds=ITEM_ODDS[clamp((e&&e.b)||3,1,4)];let tot=0;for(const k in odds)tot+=odds[k];let r=Math.random()*tot;
   for(const k in odds){r-=odds[k];if(r<0&&odds[k]>0)return{k,n:ITEMS[k].n||1};}return{k:"spike",n:ITEMS.spike.n};}
 const CPU_NAMES=["ポン太","ミルク","ガブ","モモ","コタロウ","ルナ"];
 const DRIFT_COL=["#ffffff","#4fc3ff","#ff9a2e","#c45cff"];
@@ -362,7 +366,7 @@ function allEnts(){const a=[me,...bots,...clones];if(mode==="online"){for(const 
 function roundEnts(){return allEnts().filter(e=>e.local||e.r===round);}
 function scoreOf(id){let s=0;for(const e of allEnts()){if(e.id===id)continue;for(const h of e.h)if(h[0]===id&&h[2]===1)s++;}return s;}
 function spawn(e,i){const s=SPAWNS[i%SPAWNS.length];e.x=e.rx=s[0];e.y=e.ry=s[1];e.a=e.ra=Math.atan2(H/2-s[1],W/2-s[0]);
-  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
+  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,heartN:0,gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
 
 // ---------- physics ----------
 const MAX_STOCK=3;
@@ -582,6 +586,7 @@ function botThink(b,t,dt){
     else if(k==="acorn"){if((td<260*L.range&&df>2.2)||Math.random()<dt*.25){useItem(b,t,true);b.fireCd=1.2*L.cd;}}
     else if(k==="magnet"){if(td<320){useItem(b,t,false);b.fireCd=2;}}
     else if(k==="spring"){let danger=false;for(const o of allEnts()){if(o===b)continue;for(const p of o.pj){if((ITEMS[p.k]||{}).hit==="pop"&&Math.hypot(p.x-b.x,p.y-b.y)<130)danger=true;}}if(danger||Math.random()<dt*.15){useItem(b,t,false);b.fireCd=1;}}
+    else if(k==="heart"){if((b.b<MAX_BALLOONS&&(b.heartN||0)<HEART_MAX)||Math.random()<dt*.1){useItem(b,t,false);b.fireCd=1;}}
     else if(k==='star'){if((b.stock||[]).length>=2||Math.random()<dt*.12){useItem(b,t,false);b.fireCd=1;}}
     else{if(Math.random()<dt*.8){useItem(b,t,false);b.fireCd=1.5;}}}
   if(tgt&&t<(b.mag||0)){gx=tgt.x;gy=tgt.y;}
@@ -698,7 +703,7 @@ function parseH(v){return Array.isArray(v)?v.slice(0,8).filter(Array.isArray).ma
 // apply a published kart state (a human peer's presence, or one CPU entry inside the host's presence)
 function applyState(e,pr,t){
   e.name=String(pr.n||"だれか").slice(0,10);e.color=COLORS.includes(pr.c)?pr.c:COLORS[1];
-  e.x=clamp(+pr.x||0,0,W);e.y=clamp(+pr.y||0,0,H);e.a=+pr.a||0;e.b=clamp(pr.b|0,0,3);
+  e.x=clamp(+pr.x||0,0,W);e.y=clamp(+pr.y||0,0,H);e.a=+pr.a||0;e.b=clamp(pr.b|0,0,MAX_BALLOONS);
   e.skin=CHARS[pr.sk]?pr.sk:"dog";e.invFlag=!!pr.iv;e.boostFlag=!!pr.bo;e.dr=clamp(pr.dr|0,0,3);e.ds=clamp(pr.ds|0,-1,1);
   e.pj=Array.isArray(pr.pj)?pr.pj.slice(0,6).filter(Array.isArray).map(q=>({id:q[0]|0,x:+q[1]||0,y:+q[2]||0,vx:+q[3]||0,vy:+q[4]||0,k:ITEMS[q[5]]?q[5]:"spike",t})):[];
   e.h=parseH(pr.h);
@@ -710,7 +715,7 @@ function applyState(e,pr,t){
   {const cl=Array.isArray(pr.cl)?pr.cl.slice(0,3):[];for(let i=0;i<3;i++){const id=e.id+"#c"+i,q=cl[i];let c=remoteClones.get(id);
     if(!Array.isArray(q)){if(c)remoteClones.delete(id);continue;}
     if(!c){c=makeEnt(id,e.name,e.color,false,false);c.clone=true;c.owner=e.id;c.rx=+q[0]||0;c.ry=+q[1]||0;c.ra=+q[2]||0;remoteClones.set(id,c);}
-    c.name=e.name;c.color=e.color;c.skin=e.skin;c.r=e.r;c.x=clamp(+q[0]||0,0,W);c.y=clamp(+q[1]||0,0,H);c.a=+q[2]||0;c.b=clamp(q[3]|0,0,3);c.pj=[];c.h=parseH(q[4]);}}
+    c.name=e.name;c.color=e.color;c.skin=e.skin;c.r=e.r;c.x=clamp(+q[0]||0,0,W);c.y=clamp(+q[1]||0,0,H);c.a=+q[2]||0;c.b=clamp(q[3]|0,0,MAX_BALLOONS);c.pj=[];c.h=parseH(q[4]);}}
   e.shield=pr.sh?1:0;e.mgFlag=!!pr.mg;if(pr.jp&&!e.jpFlag)e.jumpAtLocal=t;e.jpFlag=!!pr.jp;
   {const ik=pr.ik|0;if(e.prevIk!==undefined&&ik>e.prevIk&&phase==="play"){const tt=now();for(const o of [me,...bots]){if(!o||ally(e,o))continue;if(o===me)showInk();else o.inkUntil=tt+3500;}}e.prevIk=ik;}
 }
@@ -1334,12 +1339,12 @@ function buildKart(e,isMe){
   const sparks=[-1,1].map(s=>{const g=new THREE.Group();g.position.set(-15,3,15*s);for(let k=0;k<3;k++){const m=new THREE.Mesh(new THREE.TetrahedronGeometry(3.4,0),sparkMat);m.position.set(-k*3,k*1.5,0);g.add(m);}g.visible=false;body.add(g);return g;});
   // balloons
   const balloons=[];
-  for(let i=0;i<3;i++){const z=(i-1)*10;const bm=T(e.color,{roughness:.25,metalness:0,emissive:new THREE.Color(e.color).convertSRGBToLinear().multiplyScalar(.12)});
-    const bl=new THREE.Mesh(new THREE.SphereGeometry(7,16,12),bm);bl.scale.set(1,1.2,1);bl.castShadow=true;const baseY=46+(i===1?6:0);bl.position.set(-28,baseY,z);
+  for(let i=0;i<MAX_BALLOONS;i++){const row=i<3?0:1,z=row?((i-4)*10+5):(i-1)*10;const bm=T(e.color,{roughness:.25,metalness:0,emissive:new THREE.Color(e.color).convertSRGBToLinear().multiplyScalar(.12)});
+    const bl=new THREE.Mesh(new THREE.SphereGeometry(7,16,12),bm);bl.scale.set(1,1.2,1);bl.castShadow=true;const baseY=row?62+(i===4?5:0):46+(i===1?6:0),bx=row?-38:-28;bl.position.set(bx,baseY,z);
     const knot=new THREE.Mesh(new THREE.ConeGeometry(1.8,3,8),bm);knot.rotation.x=Math.PI;knot.position.set(0,-8.8,0);bl.add(knot);
     const hl=new THREE.Mesh(new THREE.SphereGeometry(1.8,8,6),new THREE.MeshBasicMaterial({color:"#ffffff",transparent:true,opacity:.7}));hl.position.set(3,3.5,-3);bl.add(hl);
-    const lg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-21,26,0),new THREE.Vector3(-28,baseY-10,z)]);const ln=new THREE.Line(lg,stringM);
-    body.add(bl);body.add(ln);balloons.push({bl,ln,baseY,z});}
+    const lg=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-21,26,0),new THREE.Vector3(bx,baseY-10,z)]);const ln=new THREE.Line(lg,stringM);
+    body.add(bl);body.add(ln);balloons.push({bl,ln,baseY,z,bx});}
   const blob=new THREE.Mesh(new THREE.CircleGeometry(24,20),new THREE.MeshBasicMaterial({color:"#000",transparent:true,opacity:.2,depthWrite:false}));blob.rotation.x=-Math.PI/2;blob.position.y=.6;root.add(blob);
   let label=null;if(!isMe){label=labelSprite(e.name);label.position.y=96;root.add(label);}
   const held=new THREE.Group();root.add(held);
@@ -1449,6 +1454,13 @@ function iconModel(k,color){
   if(k==="homing"){const g=take(buildMissile());g.children.filter(c=>c.isSprite).forEach(c=>g.remove(c));return g;}
   if(k==="starshot")return take(buildStarShot());
   const g=new THREE.Group();
+  if(k==="heart"){const hs=new THREE.Shape();hs.moveTo(0,-10);hs.bezierCurveTo(-3,-6,-12,-1,-12,4);hs.bezierCurveTo(-12,10,-5,12,0,6.5);hs.bezierCurveTo(5,12,12,10,12,4);hs.bezierCurveTo(12,-1,3,-6,0,-10);
+    const hg=new THREE.ExtrudeGeometry(hs,{depth:4,bevelEnabled:true,bevelThickness:2.6,bevelSize:2.2,bevelSegments:5,curveSegments:24});hg.center();
+    const hm=new THREE.Mesh(hg,new THREE.MeshStandardMaterial({color:new THREE.Color("#ff4f8f").convertSRGBToLinear(),emissive:new THREE.Color("#ff2f7a").convertSRGBToLinear().multiplyScalar(.25),roughness:.18,metalness:.05}));g.add(hm);
+    const hl=new THREE.Mesh(new THREE.SphereGeometry(2.4,10,8),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.8}));hl.scale.set(1.4,.8,.5);hl.position.set(-5.5,4.5,4.6);g.add(hl);
+    const kn=new THREE.Mesh(new THREE.ConeGeometry(1.8,3,8),hm.material);kn.position.set(0,-12.5,0);kn.rotation.x=Math.PI;g.add(kn);
+    const wm=T("#ffffff",{roughness:.6});for(const sd of [-1,1])for(let j=0;j<3;j++){const f=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),wm);f.scale.set(6-j*1.2,2.2,1.4);f.position.set(sd*(15+j*1.5),3-j*3.2,-1);f.rotation.z=sd*(.35+j*.25);g.add(f);}
+    return g;}
   if(k==="bubble"){const core=new THREE.Mesh(new THREE.SphereGeometry(8,24,16),T("#2346c8",{roughness:.3,metalness:.3}));g.add(core);
     const sh=new THREE.Shape();for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,r=i%2?3:7;i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r);}
     const st=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:2,bevelEnabled:false}),T("#ffd23a",{emissive:new THREE.Color("#6a4a00"),emissiveIntensity:.5}));st.position.z=6.5;g.add(st);
