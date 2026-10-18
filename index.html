@@ -487,10 +487,12 @@ function drive(e,steer,dHeld,dt,t,go){
   if(e.b>0&&go)for(const dp of DASH){const dx=e.x-dp.x,dy=e.y-dp.y,c=Math.cos(-dp.a),s=Math.sin(-dp.a),lx=dx*c-dy*s,ly=dx*s+dy*c;
     if(Math.abs(lx)<42&&Math.abs(ly)<26&&e.boost<t+900){e.boost=t+1100;}}
   
-  const pb=e.clone||pouchBlocked(e,t);
-  for(const bx of BOXES){if(bx.on&&!pb&&e.b>0&&itemCount(e,t)<MAX_STOCK&&Math.hypot(e.x-bx.x,e.y-bx.y)<R+22){bx.on=false;bx.back=t+(mode==="test"?2000:6000);popFx(bx.x,bx.y,"#ffffff",24);
-    const starLive=e.star&&t<e.star;let got=bx.fixed?{k:bx.fixed,n:ITEMS[bx.fixed].n||1}:rollItem(e);if(starLive)for(let k=0;k<20&&got.k==="star";k++)got=rollItem(e);if(starLive&&got.k==="star")got={k:"spike",n:ITEMS.spike.n};
-    if(!e.stock)e.stock=[];if(starLive){e.starStock=e.starStock||[];e.starStock.push(got);}else if(e.item)e.stock.push(got);else e.item=got;e.lastPick=got.k;e.regen=0;if(e===me){const d=ITEMS[got.k];flash(d.name+(got.n>1?" ×"+got.n:"")+(itemCount(e)>1?"（ストック"+itemCount(e)+"/3）":""));}}}
+  // rabbit clones never hold items: whatever they touch goes straight to their owner
+  const own=e.clone?[me,...bots].find(o=>o&&o.id===e.owner):e,pb=!own||own.b<=0||pouchBlocked(own,t);
+  for(const bx of BOXES){if(bx.on&&!pb&&e.b>0&&itemCount(own,t)<MAX_STOCK&&Math.hypot(e.x-bx.x,e.y-bx.y)<R+22){bx.on=false;bx.back=t+(mode==="test"?2000:6000);popFx(bx.x,bx.y,"#ffffff",24);
+    const starLive=own.star&&t<own.star;let got=bx.fixed?{k:bx.fixed,n:ITEMS[bx.fixed].n||1}:rollItem(own);if(starLive)for(let k=0;k<20&&got.k==="star";k++)got=rollItem(own);if(starLive&&got.k==="star")got={k:"spike",n:ITEMS.spike.n};
+    if(!own.stock)own.stock=[];if(starLive){own.starStock=own.starStock||[];own.starStock.push(got);}else if(own.item)own.stock.push(got);else own.item=got;own.lastPick=got.k;own.regen=0;
+    if(own===me){const d=ITEMS[got.k];flash((e.clone?"🐰 分身が ":"")+d.name+(got.n>1?" ×"+got.n:"")+(e.clone?" をゲット！":"")+(itemCount(own)>1?"（ストック"+itemCount(own)+"/3）":""));}}}
 }
 function useItem(e,t,back){
   if(e.star&&t<e.star)return false;
@@ -576,7 +578,9 @@ function botThink(b,t,dt){
   if(b.b<=0)return[0,false];const L=CPU_LV[b.lv||3];
   let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0||ally(b,o)||(o.clone&&o.owner===(b.clone?b.owner:b.id))||(b.clone&&o.id===b.owner))continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
   let gx=W/2,gy=H/2;
-  if(b.clone){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){for(let k=0;k<20;k++){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];if(!solidAt(b.wp[0],b.wp[1]))break;}b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
+  let cbox=null;if(b.clone){const ow=[me,...bots].find(o=>o&&o.id===b.owner);if(ow&&ow.b>0&&itemCount(ow,t)<MAX_STOCK&&!pouchBlocked(ow,t)){let bd=1400;for(const bx of BOXES)if(bx.on){const d=Math.hypot(bx.x-b.x,bx.y-b.y);if(d<bd){bd=d;cbox=bx;}}}}
+  if(cbox){gx=cbox.x;gy=cbox.y;}
+  else if(b.clone){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){for(let k=0;k<20;k++){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];if(!solidAt(b.wp[0],b.wp[1]))break;}b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
   else if(!b.item){let bd=1e9;for(const bx of BOXES)if(bx.on){const d=Math.hypot(bx.x-b.x,bx.y-b.y);if(d<bd){bd=d;gx=bx.x;gy=bx.y;}}}
   else if(tgt){const lead=td/540*L.lead;gx=tgt.x+Math.cos(tgt.a)*tgt.v*lead;gy=tgt.y+Math.sin(tgt.a)*tgt.v*lead;}
   let dx=gx-b.x,dy=gy-b.y;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
