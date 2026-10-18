@@ -115,8 +115,8 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
   #itemBtn{width:96px;height:96px}#driftBtn{width:82px;height:82px}
   #myb{top:calc(env(safe-area-inset-top,0px) + 56px);left:calc(max(12px,env(safe-area-inset-left,0px)) + 162px)}
 }
-.chars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.chars span{font-size:.8rem;text-align:center;line-height:1.2}
+.chars{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.chars span{font-size:.68rem;text-align:center;line-height:1.2}
 .chars button{border:3px solid #ddd3ee;border-radius:16px;background:#fff;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit;font-weight:900;color:var(--ink);cursor:pointer}
 .chars img{width:100%;max-width:72px;aspect-ratio:1;height:auto;border-radius:50%;object-fit:cover;background:#f1e9fb}
 .chars button[aria-pressed="true"]{border-color:var(--pop);background:#fff1f6;box-shadow:0 0 0 3px rgba(255,79,123,.25)}
@@ -216,7 +216,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 "use strict";
 const $=id=>document.getElementById(id);
 const ART_FB={};
-const ART=(()=>{const o={};for(const c of ["dog","cat","rabbit","penguin","bear","squirrel"]){o[c]={};for(const k of ["main","race","f0","f1","f2","f3","f4"])o[c][k]="art/"+c+"_"+k+".jpg";}return o;})();
+const ART=(()=>{const o={};for(const c of ["dog","cat","rabbit","penguin","bear","squirrel","lion","kangaroo"]){o[c]={};for(const k of ["main","race","f0","f1","f2","f3","f4"])o[c][k]="art/"+c+"_"+k+".jpg";}return o;})();
 let variant="C";
 if(!window.THREE){$("menuErr").textContent="3D表示の読み込みに失敗しました。ページを再読み込みしてください。";$("menuErr").hidden=false;return;}
 
@@ -273,7 +273,7 @@ function savePrefs(){try{localStorage.setItem("fk-prefs",JSON.stringify({n:$("na
 const colWrap=$("colors");
 COLORS.forEach(c=>{const b=document.createElement("button");b.type="button";b.style.background=c;b.setAttribute("aria-label","色 "+c);
   b.setAttribute("aria-pressed",c===myColor);b.onclick=()=>{myColor=c;[...colWrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));};colWrap.appendChild(b);});
-const CHARS={dog:"ワンちゃん",cat:"ネコちゃん",rabbit:"ウサギくん",penguin:"ペンギンちゃん",bear:"クマくん",squirrel:"リスちゃん"};let myChar="dog";
+const CHARS={dog:"ワンちゃん",cat:"ネコちゃん",rabbit:"ウサギくん",penguin:"ペンギンちゃん",bear:"クマくん",squirrel:"リスちゃん",lion:"ライオンくん",kangaroo:"カンガルーちゃん"};let myChar="dog";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(CHARS[s.ch])myChar=s.ch;}catch(e){}
 const charWrap=$("chars");
 for(const k in CHARS){const b=document.createElement("button");b.type="button";b.dataset.ch=k;b.setAttribute("aria-pressed",k===myChar);
@@ -812,7 +812,20 @@ const pawMatBear=new THREE.MeshStandardMaterial({map:bearTex,roughness:.3,transp
 const sqTex=canvasTex(128,128,(g,w,h)=>{g.fillStyle="#fff4e6";g.beginPath();g.arc(64,64,60,0,7);g.fill();g.fillStyle="#f0606a";g.beginPath();g.arc(64,64,51,0,7);g.fill();
   g.strokeStyle="#ffd98a";g.lineWidth=13;g.lineCap="round";g.beginPath();g.arc(66,58,18,Math.PI*.9,Math.PI*2.6);g.stroke();g.beginPath();g.moveTo(50,66);g.quadraticCurveTo(44,92,64,98);g.stroke();});
 const pawMatSq=new THREE.MeshStandardMaterial({map:sqTex,roughness:.3,transparent:true});
+function badgeTex(bg,ring,draw){return canvasTex(128,128,(g,w,h)=>{g.fillStyle=bg;g.beginPath();g.arc(64,64,60,0,7);g.fill();g.strokeStyle=ring;g.lineWidth=7;g.beginPath();g.arc(64,64,51,0,7);g.stroke();draw(g);});}
+const pawMatLion=new THREE.MeshStandardMaterial({roughness:.3,transparent:true,map:badgeTex("#fff4dc","#c8332b",g=>{
+  g.fillStyle="#d8902e";for(let i=0;i<12;i++){const a=i/12*Math.PI*2;g.beginPath();g.ellipse(64+Math.cos(a)*30,66+Math.sin(a)*30,11,15,a+Math.PI/2,0,7);g.fill();}
+  g.fillStyle="#f2c46a";g.beginPath();g.arc(64,66,24,0,7);g.fill();g.fillStyle="#3a2412";g.beginPath();g.arc(56,62,3,0,7);g.arc(72,62,3,0,7);g.fill();g.beginPath();g.moveTo(59,72);g.lineTo(69,72);g.lineTo(64,78);g.fill();})});
+const pawMatRoo=new THREE.MeshStandardMaterial({roughness:.3,transparent:true,map:badgeTex("#fff1f4","#ff5c8d",g=>{
+  g.fillStyle="#ff5c8d";g.beginPath();g.ellipse(66,74,20,14,-.4,0,7);g.fill();g.beginPath();g.ellipse(80,52,8,10,0,0,7);g.fill();
+  g.beginPath();g.ellipse(84,36,3,10,.2,0,7);g.fill();g.beginPath();g.moveTo(48,80);g.quadraticCurveTo(26,96,20,82);g.lineTo(46,74);g.fill();g.fillRect(64,84,22,6);})});
 const SK={
+  lion:{body:T("#f3d27a",{roughness:.22,metalness:.25}),stripe:T("#c8332b",{roughness:.25,metalness:.2}),hub:T("#e7b23a",{metalness:.7,roughness:.28}),trim:T("#c8332b",{roughness:.25,metalness:.2}),
+    fur:T("#d8902e",{roughness:.85}),face:T("#f7d9a6",{roughness:.85}),jacket:T("#e0b23c",{roughness:.55}),scarf:T("#d6302c",{roughness:.75}),
+    glove:T("#4e2e18",{roughness:.7}),glass:T("#7cc4f0",{metalness:.7,roughness:.08}),eye:T("#141218",{roughness:.25}),nose:T("#2a1810",{roughness:.35}),paw:pawMatLion,mane:T("#b8641e",{roughness:.9})},
+  kangaroo:{body:T("#ffc7d8",{roughness:.22,metalness:.2}),stripe:T("#fff3f6",{roughness:.28}),hub:T("#ff5c8d",{metalness:.4,roughness:.3}),trim:T("#ff5c8d",{roughness:.25,metalness:.2}),
+    fur:T("#d4955a",{roughness:.85}),face:T("#f6dcc0",{roughness:.85}),jacket:T("#ffd0de",{roughness:.55}),scarf:T("#ff4f8b",{roughness:.75}),
+    glove:T("#4e2e18",{roughness:.7}),glass:T("#e87ad0",{metalness:.7,roughness:.08}),eye:T("#3a1e10",{roughness:.22}),nose:T("#2a1810",{roughness:.35}),paw:pawMatRoo},
   squirrel:{body:T("#fff3e3",{roughness:.25,metalness:.15}),stripe:T("#2bb3a8",{roughness:.25,metalness:.25}),hub:T("#2bb3a8",{metalness:.45,roughness:.3}),trim:T("#f0606a",{roughness:.25,metalness:.25}),
     fur:T("#c97a3c",{roughness:.85}),face:T("#fff1de",{roughness:.85}),jacket:T("#27a89e",{roughness:.5}),scarf:T("#e0302f",{roughness:.75}),
     glove:T("#3a2418",{roughness:.7}),glass:T("#4fd0c8",{metalness:.7,roughness:.08}),eye:T("#3a1e10",{roughness:.22}),nose:T("#2a1a14",{roughness:.35}),paw:pawMatSq},
@@ -834,8 +847,8 @@ const SK={
 const CM={leather:T("#7a4a2a",{roughness:.5}),strap:T("#4e2e18",{roughness:.6}),black:T("#141218",{roughness:.35}),gold:T("#e7b23a",{metalness:.7,roughness:.28}),
   mouth:T("#7a1626",{roughness:.6}),tongue:T("#ff7f8f",{roughness:.6}),earIn:T("#ffb0c8",{roughness:.8}),
   lamp:new THREE.MeshStandardMaterial({color:0xfff1c4,emissive:0xffc860,emissiveIntensity:1.4,roughness:.2})};
-const SHARED=new Set([darkM,greyM,skinM,whiteM,chromeM,hubM,stringM,flameMatO,flameMatB,pawMat,pawMatCat,...Object.values(CM),...Object.values(SK.dog),...Object.values(SK.cat),...Object.values(SK.rabbit),...Object.values(SK.penguin),...Object.values(SK.bear),...Object.values(SK.squirrel)]);
-function buildPilot(kind,shell,body,wheels,part){const S=SK[kind]||SK.dog,C=CM,cat=kind==="cat",rab=kind==="rabbit",pen=kind==="penguin",bear=kind==="bear",sq=kind==="squirrel",small=cat||rab||sq;
+const SHARED=new Set([darkM,greyM,skinM,whiteM,chromeM,hubM,stringM,flameMatO,flameMatB,pawMat,pawMatCat,...Object.values(CM),...Object.values(SK.dog),...Object.values(SK.cat),...Object.values(SK.rabbit),...Object.values(SK.penguin),...Object.values(SK.bear),...Object.values(SK.squirrel),...Object.values(SK.lion),...Object.values(SK.kangaroo)]);
+function buildPilot(kind,shell,body,wheels,part){const S=SK[kind]||SK.dog,C=CM,cat=kind==="cat",rab=kind==="rabbit",pen=kind==="penguin",bear=kind==="bear",sq=kind==="squirrel",lion=kind==="lion",roo=kind==="kangaroo",small=cat||rab||sq||roo;
   part(new THREE.BoxGeometry(40,4,22),darkM,0,5,0);
   const tub=part(new THREE.SphereGeometry(1,28,18),S.body,4,12,0);tub.scale.set(21,9,12.5);
   const stripe=part(new THREE.SphereGeometry(1,28,18),S.stripe,4,12.2,0);stripe.scale.set(21.2,9.2,3.4);
@@ -884,6 +897,11 @@ function buildPilot(kind,shell,body,wheels,part){const S=SK[kind]||SK.dog,C=CM,c
       const ei=part(new THREE.ConeGeometry(2.2,6,8),C.earIn,.6,8.6,5.4*sd,hd);ei.rotation.x=.35*sd;}
     else if(rab){const ea=part(new THREE.SphereGeometry(1,14,10),S.fur,-2.5,15,3.8*sd,hd);ea.scale.set(2.3,10.5,3.8);ea.rotation.set(.12*sd,0,.3);
       const ei=part(new THREE.SphereGeometry(1,12,8),C.earIn,-1.3,15.2,3.8*sd,hd);ei.scale.set(1.3,8.5,2.4);ei.rotation.set(.12*sd,0,.3);}
+    else if(lion){const ea=part(new THREE.SphereGeometry(3,14,10),S.fur,-1.5,8.6,6.6*sd,hd);ea.scale.set(.75,1,1);
+      const ei=part(new THREE.SphereGeometry(1.8,10,8),S.face,-.5,8.4,6.4*sd,hd);ei.scale.set(.5,1,1);}
+    else if(roo){const bl=part(new THREE.SphereGeometry(1.6,8,6),C.earIn,8.4,-2.2,5.4*sd,hd);bl.scale.set(.4,.7,1.2);
+      const ea=part(new THREE.SphereGeometry(1,14,10),S.fur,-2,14,4.6*sd,hd);ea.scale.set(2.4,8,3.6);ea.rotation.set(.35*sd,0,.15);
+      const ei=part(new THREE.SphereGeometry(1,12,8),C.earIn,-.9,14,4.5*sd,hd);ei.scale.set(1.3,6.4,2.3);ei.rotation.set(.35*sd,0,.15);}
     else if(sq){const bl=part(new THREE.SphereGeometry(1.6,8,6),C.earIn,8.4,-2.2,5.4*sd,hd);bl.scale.set(.4,.7,1.2);
       const ea=part(new THREE.ConeGeometry(3.4,8,8),S.fur,-1.4,9.5,5.4*sd,hd);ea.rotation.x=.3*sd;
       const tu=part(new THREE.ConeGeometry(1.4,4,6),S.face,-1.6,14,6.6*sd,hd);tu.rotation.x=.3*sd;}
@@ -892,10 +910,19 @@ function buildPilot(kind,shell,body,wheels,part){const S=SK[kind]||SK.dog,C=CM,c
     else if(pen){const bl=part(new THREE.SphereGeometry(1.6,8,6),C.earIn,8.8,-2.4,5.4*sd,hd);bl.scale.set(.4,.7,1.2);}
     else{const ear=part(new THREE.SphereGeometry(1,14,10),S.fur,-1.5,-2.5,9.6*sd,hd);ear.scale.set(3.2,10,6.5);ear.rotation.x=-.28*sd;}}
   const helm=part(new THREE.SphereGeometry(9.7,22,12,0,Math.PI*2,0,Math.PI/2),C.leather,0,.6,0,hd);helm.rotation.z=.35;
-  if(cat||pen||bear||sq)for(const sd of [-1,1]){const flap=part(new THREE.SphereGeometry(1,12,8),C.leather,-.5,-2,9*sd,hd);flap.scale.set(4,6,2);}
+  if(cat||pen||bear||sq||lion||roo)for(const sd of [-1,1]){const flap=part(new THREE.SphereGeometry(1,12,8),C.leather,-.5,-2,9*sd,hd);flap.scale.set(4,6,2);}
   const gg=new THREE.Group();gg.rotation.z=.35;hd.add(gg);
   const strap=part(new THREE.TorusGeometry(9.9,.9,8,28),C.strap,0,3,0,gg);strap.rotation.x=Math.PI/2;
   for(const sd of [-1,1]){const lr=part(new THREE.TorusGeometry(2.8,1,8,16),chromeM,8.6,4.2,3.3*sd,gg);lr.rotation.y=Math.PI/2;const gl=part(new THREE.SphereGeometry(2.3,12,10),S.glass,8.9,4.2,3.3*sd,gg);gl.scale.set(.5,1,1);}
+  if(lion){// fluffy mane around the head
+    for(let i=0;i<14;i++){const a=i/14*Math.PI*2,m=part(new THREE.SphereGeometry(4.2,10,8),S.mane,-2.5+Math.cos(a)*.8,Math.sin(a)*8.8,Math.cos(a)*8.8,hd);m.scale.set(1,1.15,1.15);}
+    const tl2=part(new THREE.CylinderGeometry(.9,.9,16,6),S.fur,-22,16,0);tl2.rotation.z=1.1;part(new THREE.SphereGeometry(3.4,10,8),S.mane,-29,22,0);}
+  if(roo){// joey in the pouch and a thick tail
+    const pouch=part(new THREE.SphereGeometry(4.2,12,10),S.face,4.2,5,0,drv);pouch.scale.set(.8,.9,1.2);
+    const jh=part(new THREE.SphereGeometry(2.6,12,10),S.fur,6.4,8.6,0,drv);
+    for(const sd of [-1,1]){const je=part(new THREE.SphereGeometry(1,8,6),S.fur,5.6,12,1.4*sd,drv);je.scale.set(.8,2.2,1);}
+    part(new THREE.SphereGeometry(.6,6,6),C.black,8.8,8.8,0,drv);
+    const rt=part(new THREE.CylinderGeometry(1.6,3.2,20,8),S.fur,-23,12,0);rt.rotation.z=1.25;}
   if(sq){const tg=new THREE.Group();tg.position.set(-15,16,0);shell.add(tg);
     [[0,4,0,5.5],[-4,11,0,7],[-5,20,0,8],[-1,27,0,7.5],[4,30,0,6],[7,27,0,4.5]].forEach(([x,y,z,r],i)=>{const b=part(new THREE.SphereGeometry(r,14,10),i>=4?S.face:S.fur,x,y,z,tg);b.scale.set(1,1,.8);});}
   return tail;
@@ -908,9 +935,9 @@ function setBoards(on){
       const sc=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tx,toneMapped:false}));sc.position.set(0,y,3.2);g.add(sc);
       for(const sd of [-1,1]){const p=new THREE.Mesh(new THREE.CylinderGeometry(5,5,y,8),postM);p.position.set(sd*w*.38,y/2,-5);g.add(p);}
       boards.add(g);};
-    ["dog","cat","rabbit","penguin","bear","squirrel"].forEach((k,i)=>mk(ART[k].main,245,153,W/2+(i-2.5)*265,-170,0,185));
-    ["dog","rabbit","bear"].forEach((k,i)=>mk(ART[k].race,240,213,-210,H/2+(i-1)*280,Math.PI/2,175));
-    ["cat","penguin","squirrel"].forEach((k,i)=>mk(ART[k].race,240,213,W+210,H/2+(i-1)*280,-Math.PI/2,175));
+    ["dog","cat","rabbit","penguin","bear","squirrel","lion","kangaroo"].forEach((k,i)=>mk(ART[k].main,245,153,W/2+(i-3.5)*275,-170,0,185));
+    ["dog","rabbit","bear","lion"].forEach((k,i)=>mk(ART[k].race,240,213,-210,H/2+(i-1.5)*300,Math.PI/2,175));
+    ["cat","penguin","squirrel","kangaroo"].forEach((k,i)=>mk(ART[k].race,240,213,W+210,H/2+(i-1.5)*300,-Math.PI/2,175));
     CG.add(boards);}
   if(boards)boards.visible=!!on;
 }
