@@ -204,6 +204,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div class="field"><label>CPUレベル（CPU練習用）</label><div class="courses" id="cpuLv"></div></div>
     <div class="field"><label>CPUの人数</label><div class="courses" id="cpuNum"></div></div>
     <div class="field"><label>チームバトル（CPU練習用）</label><div class="courses" id="soloTm"></div></div>
+    <div class="field"><label>走行テストのCPU（1人追加）</label><div class="courses" id="testCpu"></div></div>
     <div class="field"><label>風船の色</label><div class="colors" id="colors"></div></div>
     <div class="field"><label for="passIn">合言葉</label><input id="passIn" maxlength="24" placeholder="例：たこやき" autocomplete="off"></div>
     <button class="btn" id="joinBtn" type="button">合言葉でルームに入る</button>
@@ -273,12 +274,12 @@ const ITEMS={
   homing:{name:"ストーカーミサイル",icon:"🎯",n:1,w:12,hold:true,kind:"proj",speed:400,back:400,life:6000,bounce:true,die:true,lock:true,face:true,hit:"pop",step:(p,o,dt,t)=>homingStep(p,o,dt,t),mesh:()=>buildMissile()},
   bubble:{name:"バリバリバリア",icon:"🛡️",n:1,w:10,use:(e,t)=>{e.shield=1;e.shieldUntil=t+120000;if(e===me)flash("🛡️ バリバリバリア！（攻撃されなければ2分）",1600);}},
   ink:{name:"お邪魔インク",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;localInk(e,t);}},
-  mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&mode!=="test")flash("🪞 ミラーマジック発動！みんなのハンドルが5秒逆に！",1600);localMirror(e,t);}},
+  mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&(mode!=="test"||bots.length))flash("🪞 ミラーマジック発動！みんなのハンドルが5秒逆に！",1600);localMirror(e,t);}},
   star:{name:"スター",icon:"🌟",n:1,w:2,use:(e,t)=>{e.star=t+STAR_MS;e.starStock=(e.stock||[]).slice(0,2);e.stock=[];e.starCd=[0,0];if(e===me)flash(e.starStock.length?"🌟 スター！無敵＋体当たりアタック＋上のアイテム撃ち放題！":"🌟 スター！無敵＋体当たりでアタック！",1800);}},
   starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:540,back:300,life:4000,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
 };
 let mirrorFx=0;
-function localMirror(src,t){if(mode==="test"&&me){me.mirrorUntil=t+5000;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;o.mirrorUntil=t+5000;if(o===me){mirrorFx=t+5000;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
+function localMirror(src,t){if(mode==="test"&&me&&!bots.length){me.mirrorUntil=t+5000;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;o.mirrorUntil=t+5000;if(o===me){mirrorFx=t+5000;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
 // ---------- walls (axis-aligned rectangles [x1,y1,x2,y2]) ----------
 let WALLS=[];
 function pushOutRect(o,r,w){const cx=clamp(o.x,w[0],w[2]),cy=clamp(o.y,w[1],w[3]);const dx=o.x-cx,dy=o.y-cy,d=Math.hypot(dx,dy);
@@ -309,7 +310,7 @@ function wipeInk(x,y){if(now()>=inkUntil)return;const c=$("ink"),g=c.getContext(
   g.fillStyle=gr;g.beginPath();g.arc(cx,cy,r,0,7);g.fill();g.globalCompositeOperation="source-over";}
 addEventListener("pointermove",e=>{if(e.pointerType!=="mouse"||e.buttons)wipeInk(e.clientX,e.clientY);},{capture:true,passive:true});
 addEventListener("pointerdown",e=>wipeInk(e.clientX,e.clientY),{capture:true,passive:true});
-function localInk(src,t){if(mode==="test"){showInk();return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;if(o===me)showInk();else o.inkUntil=t+3500;}}
+function localInk(src,t){if(mode==="test"&&!bots.length){showInk();return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;if(o===me)showInk();else o.inkUntil=t+3500;}}
 function nearestFoe(owner,x,y){let best=null,bd=1e9;for(const o of allEnts()){if(o.id===owner.id||o.b<=0||ally(owner,o)||(o.clone&&o.owner===owner.id))continue;const d=Math.hypot(o.x-x,o.y-y);if(d<bd){bd=d;best=o;}}return best;}
 function homingStep(p,owner,dt,t){if(t-p.t<180)return;let best=allEnts().find(o=>o.id===p.tg&&o.b>0);
   if(!best){best=nearestFoe(owner,p.x,p.y);if(best)p.tg=best.id;}
@@ -559,8 +560,8 @@ const CPU_LV={1:{name:"よわい",spd:.76,wob:.6,gain:1.3,tol:.45,cd:3,lead:0,sp
   5:{name:"鬼",spd:1.12,wob:.02,gain:3,tol:.09,cd:.45,lead:1.2,spec:2.5,range:1.3}};
 let cpuLevel=3,cpuCount=3;try{const v=+localStorage.getItem("fk-cn");if(v>=1&&v<=6)cpuCount=v;}catch(e){}
 try{const v=+localStorage.getItem("fk-lv");if(CPU_LV[v])cpuLevel=v;}catch(e){}
-let onlineCpu=0,onlineLv=3,onlineTeam=0,soloTeam=0;
-try{const g=k=>localStorage.getItem(k);let v=g("fk-ocn");if(v!==null&&+v>=0&&+v<=6)onlineCpu=+v;v=+g("fk-olv");if(CPU_LV[v])onlineLv=v;v=+g("fk-otm");if(v===1||v===2)onlineTeam=v;v=+g("fk-stm");if(v===1)soloTeam=1;}catch(e){}
+let onlineCpu=0,onlineLv=3,onlineTeam=0,soloTeam=0,testCpu=0;
+try{const g=k=>localStorage.getItem(k);let v=g("fk-ocn");if(v!==null&&+v>=0&&+v<=6)onlineCpu=+v;v=+g("fk-olv");if(CPU_LV[v])onlineLv=v;v=+g("fk-otm");if(v===1||v===2)onlineTeam=v;v=+g("fk-stm");if(v===1)soloTeam=1;v=+g("fk-tcp");if(CPU_LV[v])testCpu=v;}catch(e){}
 function botThink(b,t,dt){
   if(b.b<=0)return[0,false];const L=CPU_LV[b.lv||3];
   let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0||ally(b,o)||(o.clone&&o.owner===(b.clone?b.owner:b.id))||(b.clone&&o.id===b.owner))continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
@@ -789,7 +790,7 @@ function startSolo(){
 }
 function startTest(v){
   savePrefs();mode="test";variant=v||null;leaveOnline();
-  me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;bots=[];
+  me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;bots=testCpu?makeBots(1,testCpu,"cpu"):[];
   round=1;beginRound(1,pickedCourse);
 }
 function finish(){
@@ -1525,6 +1526,7 @@ function frame(){
     if(go)for(const e of [me,...bots,...clones]){resolveHits(e,t);resolveIce(e,t);if(!e.clone)bearWatch(e,t);resolveRam(e,t);resolveMagnet(e,t);gainSteals(e);if(e.shield&&t>e.shieldUntil)e.shield=0;}
     for(const e of [...remotes.values(),...remoteBots.values()])for(const p of e.pj){p.x+=p.vx*dt;p.y+=p.vy*dt;}
     for(const e of allEnts()){if(e.b<e.prevB)popFx(e.rx,e.ry,e.color);e.prevB=e.b;}
+    if(mode==="test")for(const e of [me,...bots]){if(e.b>0){e.reviveAt=0;continue;}if(!e.reviveAt)e.reviveAt=t+2500;else if(t>e.reviveAt){e.b=3;e.prevB=3;e.inv=t+2000;e.reviveAt=0;e.spin=0;e.frozenUntil=0;if(e===me)flash("🎈 テストなので風船復活！",1200);}}
     if(go&&mode!=="test"){const ents=roundEnts().filter(e=>!e.clone),alive=ents.filter(e=>e.b>0).length;
       let over=ents.length>=2&&alive<=1;if(teamOn){const all=new Set(ents.map(teamOf)),live=new Set(ents.filter(e=>e.b>0).map(teamOf));over=all.size>=2&&live.size<=1;}
       if(t>=endAt||over||(mode==="solo"&&me.b<=0))finish();}
@@ -1630,6 +1632,7 @@ function pickRow(id,items,cur,key,set){const wrap=$(id);items.forEach(([v,label]
 pickRow("oCpuNum",[0,1,2,3,4,5,6].map(i=>[i,i+"人"]),onlineCpu,"fk-ocn",v=>onlineCpu=v);
 pickRow("oCpuLv",[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name]),onlineLv,"fk-olv",v=>onlineLv=v);
 pickRow("oTeam",[[0,"個人戦"],[1,"チーム戦（赤vs青）"],[2,"みんな vs CPU"]],onlineTeam,"fk-otm",v=>onlineTeam=v);
+pickRow("testCpu",[[0,"なし"],...[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name])],testCpu,"fk-tcp",v=>testCpu=v);
 pickRow("soloTm",[[0,"なし（個人戦）"],[1,"あり（赤vs青）"]],soloTeam,"fk-stm",v=>soloTeam=v);
 let pickedCourse="arena";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])pickedCourse=s.co;}catch(e){}
