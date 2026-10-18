@@ -3,7 +3,7 @@
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyCFrp2Z19dNpqSMJeqi5-HCJD1ledrReEM",
   authDomain: "fusen-kart.firebaseapp.com",
-  databaseURL: "",
+  databaseURL: "https://fusen-kart-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "fusen-kart",
   storageBucket: "fusen-kart.firebasestorage.app",
   messagingSenderId: "26375406916",
