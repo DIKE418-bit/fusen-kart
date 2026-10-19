@@ -549,6 +549,7 @@ const ITEMS={
   heart:{name:"ハートバルーン",icon:"💗",n:1,w:2,use:(e,t)=>{
     if(e.b>0&&e.b<MAX_BALLOONS){e.b++;e.prevB=e.b;e.heartN=(e.heartN||0)+1;popFx(e.x,e.y,"#ff7cb0",18);if(e===me)flash("💗 ハートバルーン！風船が1個増えた（"+e.b+"/"+MAX_BALLOONS+"）",1600);}
     else if(e===me)flash("💗 風船は6個がMAX！これ以上は増えない",1600);}},
+  roar:{name:"王者の咆哮",icon:"🦁",n:1,w:0,kind:"proj",ghost:true,pierce:true,noSelf:true,speed:2400,back:2400,life:1300,bounce:false,face:true,hit:"pop",r:96,mesh:()=>buildRoar()},
   starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:1620,back:900,life:2800,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
 };
 let mirrorFx=0;const MAX_BALLOONS=6;const MIRROR_MS=4000;
@@ -638,7 +639,7 @@ function allEnts(){const a=[me,...bots,...clones];if(mode==="online"){for(const 
 function roundEnts(){return allEnts().filter(e=>e.local||e.r===round);}
 function scoreOf(id){let s=0;for(const e of allEnts()){if(e.id===id)continue;for(const h of e.h)if(h[0]===id&&h[2]===1)s++;}return s;}
 function spawn(e,i){const s=SPAWNS[i%SPAWNS.length];e.x=e.rx=s[0];e.y=e.ry=s[1];e.a=e.ra=Math.atan2(H/2-s[1],W/2-s[0]);e.mvA=e.a;
-  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,heartN:0,growlUntil:0,woolUntil:0,woolN:0,munchUntil:0,kingUntil:0,kingCd:0,sqCd:{},gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
+  Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,heartN:0,growlUntil:0,woolUntil:0,woolN:0,munchUntil:0,roarUntil:0,roarCd:0,sqCd:{},gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
 
 // ---------- physics ----------
 const MAX_STOCK=3;
@@ -650,11 +651,11 @@ const SPECS={
   penguin:{name:"アイスエイジ",icon:"❄️",dur:40000,desc:"40秒間、まわりを氷づけにする全方位アタック（近づいた相手は何回でも割れる）＋飛んでくる攻撃も凍らせる"},
   bear:{name:"強欲な報復",icon:"🐻",dur:120000,desc:"風船2個以上で使える。2分以内に攻撃されたら40秒間ストーカーミサイル撃ち放題＋速度1.5倍。その間にアタックが決まるたびに風船を1個うばう（最大2個）"},
   squirrel:{name:"電光石火",icon:"⚡",dur:40000,desc:"40秒間、スピード2.5倍＋ぶつかった相手から最後に取ったアイテムを1個ずつ盗む"},
-  lion:{name:"王の徴収",icon:"👑",dur:40000,desc:"40秒間、ボタンを押すたびに空いているストックの数だけ、だれかのアイテムをランダムに徴収"},
+  lion:{name:"王者の咆哮",icon:"🦁",dur:40000,desc:"40秒間、ボタンを押すたびに前方へ、キャラの3倍の太さで障害物も相手も全部つらぬくビームを撃ち放題"},
   kangaroo:{name:"袋隠し",icon:"👜",dur:40000,desc:"40秒間、アイテムボックスが自分にしか見えず自分しか取れない"},
   sheep:{name:"ムートンドリーム",icon:"🐑",desc:"風船を最大の6個まで一気に補充する（残り1個なら+5、5個なら+1）"},
   goat:{name:"デーモンナイトメア",icon:"😈",desc:"自分の風船を1つ生贄にして、ほかのプレイヤー全員の風船を1つずつ割る（風船2個以上で使える・バリアでも防げない）"}};
-const ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.5,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=3600,KNOCK_MS=1400;
+const ROAR_CD=450,ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.5,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=3600,KNOCK_MS=1400;
 let clones=[],remoteClones=new Map(),remoteBots=new Map();
 // teams: teamOn 0=none 1=mixed red/blue 2=humans vs CPU; teamMap id->0/1 (decided by whoever started the round)
 const TEAM_COL=["#ff4f7b","#3fa9ff"],TEAM_NAME=["🔴 赤チーム","🔵 青チーム"];
@@ -697,11 +698,11 @@ function woolBlock(L,t){if(!L.local||!woolOn(L,t))return false;L.woolN--;L.inv=t
 function hasStar(o){if(o.local)return(o.item&&o.item.k==="star")||(o.stock||[]).some(x=>x.k==="star");return(o.invList||[]).some(q=>q[0]==="star");}
 function starHolders(e){return allEnts().filter(o=>o!==e&&!o.clone&&o.b>0&&!ally(e,o)&&hasStar(o)).sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y));}
 function pouchBlocked(e,t){return allEnts().some(o=>o!==e&&!o.clone&&pouchOn(o,t));}
-function specActiveUntil(e,t){switch(e.skin){case"goat":return e.munchUntil||0;case"sheep":return (e.woolN||0)>0?(e.woolUntil||0):0;case"lion":return e.kingUntil||0;case"dog":return e.growlUntil||0;case"cat":return e.ghostUntil||0;case"penguin":return e.iceUntil||0;case"bear":return e.bearRage>t?e.bearRage:(e.bearArm||0);
+function specActiveUntil(e,t){switch(e.skin){case"goat":return e.munchUntil||0;case"sheep":return (e.woolN||0)>0?(e.woolUntil||0):0;case"lion":return e.roarUntil||0;case"dog":return e.growlUntil||0;case"cat":return e.ghostUntil||0;case"penguin":return e.iceUntil||0;case"bear":return e.bearRage>t?e.bearRage:(e.bearArm||0);
   case"squirrel":return e.dashUntil||0;case"kangaroo":return e.pouchUntil||0;case"rabbit":{let m=0;for(const c of clones)if(c.owner===e.id&&c.b>0)m=Math.max(m,c.cloneUntil);return m;}}return 0;}
 function canSpec(e,t){const S=SPECS[e.skin];if(!S||e.clone||e.b<=0||phase!=="play")return false;
   if(e.bearRage>t)return t>=(e.bearCd||0);
-  if(e.skin==="lion"&&t<(e.kingUntil||0))return t>=(e.kingCd||0)&&freeSlots(e,t)>0;
+  if(e.skin==="lion"&&t<(e.roarUntil||0))return t>=(e.roarCd||0);
   if(mode==="test"&&e.spUsed&&t>(e.spDoneAt||0)&&specActiveUntil(e,t)<t){e.spUsed=false;e.bearArm=0;}
   if(e.spUsed)return false;
   if(e.skin==="bear"&&e.b<2)return false;
@@ -710,7 +711,7 @@ function canSpec(e,t){const S=SPECS[e.skin];if(!S||e.clone||e.b<=0||phase!=="pla
   return true;}
 function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e===me;
   if(e.bearRage>t){e.bearCd=t+RAGE_CD;return launch(e,"homing",t,false);}
-  if(e.skin==="lion"&&t<(e.kingUntil||0)){e.kingCd=t+350;kingTax(e,t);return true;}
+  if(e.skin==="lion"&&t<(e.roarUntil||0)){e.roarCd=t+ROAR_CD;launch(e,"roar",t,false);if(e===me)sfx("missile");return true;}
   switch(e.skin){
     case"dog":e.growlUntil=t+S.dur;if(mine)flash("💢 威嚇！40秒間みんなのスピード半分！",1600);else if(me&&!ally(e,me))flash("💢 "+e.name+" の威嚇！スピードが半分に…",1800);break;
     case"cat":e.ghostUntil=t+S.dur;if(mine)flash("👻 猫抜け！40秒すり抜け",1500);break;
@@ -718,7 +719,7 @@ function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e
     case"penguin":e.iceUntil=t+S.dur;e.iceStart=t;e.iceSeq=(e.iceSeq||0)+1;if(mine)flash("❄️ アイスエイジ！",1300);break;
     case"bear":e.bearArm=t+S.dur;e.bearPrevB=e.b;if(mine)flash("🐻 強欲な報復…（2分以内に攻撃されたら発動）",1800);break;
     case"squirrel":e.dashUntil=t+S.dur;if(mine)flash("⚡ 電光石火！",1300);break;
-    case"lion":e.kingUntil=t+S.dur;e.kingCd=t+350;if(mine)flash("👑 王の徴収！40秒間、ボタンを押すたびにアイテムを徴収！",1500);kingTax(e,t);break;
+    case"lion":e.roarUntil=t+S.dur;e.roarCd=t+ROAR_CD;launch(e,"roar",t,false);if(mine)flash("🦁 王者の咆哮！40秒間ビーム撃ち放題！",1500);break;
     case"goat":demonNightmare(e,t);break;
     case"sheep":{const add=MAX_BALLOONS-e.b;e.b=MAX_BALLOONS;e.prevB=e.b;e.bearPrevB=e.b;popFx(e.x,e.y,"#ffffff",40);if(mine)flash("🐑 ムートンドリーム！風船が"+add+"個ふえて6個に！",1800);break;}
     case"kangaroo":e.pouchUntil=t+S.dur;if(mine)flash("👜 袋隠し！40秒間アイテムはあなただけのもの",1800);break;}
@@ -835,7 +836,7 @@ function stepProj(e,dt,t){
     for(const w of WALLS){const n=pushOutRect(p,PR,w);if(n){const dot=p.vx*n[0]+p.vy*n[1];if(dot<0){p.vx-=2*dot*n[0];p.vy-=2*dot*n[1];}}}
     for(const q of PILLARS){const dx=p.x-q.x,dy=p.y-q.y,d=Math.hypot(dx,dy)||1;if(d<q.r+PR){const nx=dx/d,ny=dy/d,dot=p.vx*nx+p.vy*ny;if(dot<0){p.vx-=2*dot*nx;p.vy-=2*dot*ny;}p.x=q.x+nx*(q.r+PR);p.y=q.y+ny*(q.r+PR);}}}
   const ents=allEnts();
-  e.pj=e.pj.filter(p=>!p.dead&&t-p.t<((ITEMS[p.k]||ITEMS.spike).life)&&!ents.some(o=>o.h.some(h=>h[0]===e.id&&h[1]===p.id)));
+  e.pj=e.pj.filter(p=>!p.dead&&t-p.t<((ITEMS[p.k]||ITEMS.spike).life)&&((ITEMS[p.k]||{}).pierce||!ents.some(o=>o.h.some(h=>h[0]===e.id&&h[1]===p.id))));
 }
 function resolveRam(L,t){
   if(L.b<=0||t<(L.star||0)||t<L.jump)return;L.ramCd=L.ramCd||{};
@@ -866,15 +867,15 @@ function resolveHits(L,t){
   for(const E of allEnts()){const self=E.id===L.id;
     for(const p of E.pj){
       const def=ITEMS[p.k]||ITEMS.spike;
-      if(self&&t-p.t<700)continue;
+      if(self&&(t-p.t<700||def.noSelf))continue;
       if(L.clone&&L.owner===E.id)continue;
       if(!self&&ally(E,L))continue;
-      if(!self&&munchOn(L,t)&&Math.hypot(p.x-L.x,p.y-L.y)<MUNCH_R+(def.r||PR)&&!L.h.some(h=>h[0]===E.id&&h[1]===p.id)){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();popFx(p.x,p.y,"#ff7cb0",12);
+      if(!self&&!def.pierce&&munchOn(L,t)&&Math.hypot(p.x-L.x,p.y-L.y)<MUNCH_R+(def.r||PR)&&!L.h.some(h=>h[0]===E.id&&h[1]===p.id)){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();popFx(p.x,p.y,"#ff7cb0",12);
         const k=p.k==="starshot"?"spike":p.k;if(ITEMS[k]&&freeSlots(L,t)>0){giveItem(L,{k,n:1},t);if(L===me)flash("🐐 パクッ！ "+ITEMS[k].name+" をゲット",1200);}else if(L===me)flash("🐐 パクッ！（ストック満杯）",1000);continue;}
       if(!self&&iceOn(L,t)&&Math.hypot(p.x-L.x,p.y-L.y)<ICE_R&&!L.h.some(h=>h[0]===E.id&&h[1]===p.id)){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();popFx(p.x,p.y,"#bfefff",10);continue;}
       if(t<L.jump||t<(L.star||0))continue;
       if(Math.hypot(p.x-L.x,p.y-L.y)<R+(def.r||PR)&&t>L.inv&&!L.h.some(h=>h[0]===E.id&&h[1]===p.id)){
-        if(!def.trap&&L.item&&ITEMS[L.item.k]&&ITEMS[L.item.k].hold&&((p.x-L.x)*Math.cos(L.a)+(p.y-L.y)*Math.sin(L.a))<-4){
+        if(!def.trap&&!def.pierce&&L.item&&ITEMS[L.item.k]&&ITEMS[L.item.k].hold&&((p.x-L.x)*Math.cos(L.a)+(p.y-L.y)*Math.sin(L.a))<-4){
           L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();{const it=L.item;if(--it.n<=0){L.item=null;grantRefill(L,it);}}popFx(L.x-Math.cos(L.a)*34,L.y-Math.sin(L.a)*34,"#ffffff",14);if(L===me)flash("🛡️ 後ろのアイテムでガード！");continue;}
         if(woolBlock(L,t)){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();continue;}
         if(L.shield){L.h.push([E.id,p.id,0]);if(L.h.length>8)L.h.shift();L.shield=0;L.inv=t+700;barriFx(L.x,L.y);if(L===me)flash("⚡ BARI！バリアで防いだ！");continue;}
@@ -929,9 +930,9 @@ function botThink(b,t,dt){
     if(ITEMS[k].trap)useStarSlot(b,i,t,true);else if(ITEMS[k].use){if(Math.random()<dt*1.5)useStarSlot(b,i,t,false);}else{const want=Math.atan2(tgt.y-b.y,tgt.x-b.x);if(Math.abs(angDiff(want,b.a))<.3||k==="homing")useStarSlot(b,i,t,false);}}}
   if(!b.clone&&tgt){
     if(b.bearRage>t){if(td<750&&t>=(b.bearCd||0))useSpec(b,t);}
-    else if(b.skin==="lion"&&t<(b.kingUntil||0)){if(Math.random()<dt*2)useSpec(b,t);}
+    else if(b.skin==="lion"&&t<(b.roarUntil||0)){const df=Math.abs(angDiff(Math.atan2(tgt.y-b.y,tgt.x-b.x),b.a));if(td<1600&&df<.25)useSpec(b,t);}
     else if(!b.spUsed&&t-phaseAt>6000&&Math.random()<dt*.5*L.spec){const k=b.skin;let go=false;
-      if(k==="dog")go=td<700||Math.random()<.05;else if(k==="sheep")go=b.b<=2||(b.b<=4&&Math.random()<.02);else if(k==="goat")go=b.b>=3||(b.b>=2&&Math.random()<.03);else if(k==="lion")go=allEnts().some(o=>o!==b&&!o.clone&&!ally(b,o)&&invCount(o)>0);else if(k==="penguin")go=td<ICE_R*.9;
+      if(k==="dog")go=td<700||Math.random()<.05;else if(k==="sheep")go=b.b<=2||(b.b<=4&&Math.random()<.02);else if(k==="goat")go=b.b>=3||(b.b>=2&&Math.random()<.03);else if(k==="lion")go=td<1400;else if(k==="penguin")go=td<ICE_R*.9;
       else if(k==="squirrel")go=td<260||Math.random()<.05;else if(k==="cat")go=Math.random()<.08;else go=Math.random()<.06;
       if(go)useSpec(b,t);}}
   const want=Math.atan2(dy,dx)+Math.sin(t/800+b.seed)*L.wob;
@@ -2299,6 +2300,12 @@ function boomFx(x,z){sfxAt("pop",x,z);popFx(x,z,"#ffd23a",14);popFx(x,z,"#ff3d6e
 function buildAcorn(){const g=new THREE.Group(),a=new THREE.Mesh(acornGeo,acornM);a.scale.set(1,1.2,1);a.castShadow=true;g.add(a);const c=new THREE.Mesh(capGeo,capM);c.position.y=3;g.add(c);const st=new THREE.Mesh(stemGeo,capM);st.position.y=12;g.add(st);g.userData.static=true;g.userData.y=10;scene.add(g);return g;}
 function buildHoming(){const g=new THREE.Group(),b=new THREE.Mesh(homGeo,homM);b.castShadow=true;g.add(b);const r1=new THREE.Mesh(ringGeo,ringM);g.add(r1);const r2=new THREE.Mesh(ringGeo,ringM);r2.rotation.y=Math.PI/2;g.add(r2);
   const gl=new THREE.Sprite(flameMatO);gl.scale.set(30,30,1);g.add(gl);g.userData.y=14;scene.add(g);return g;}
+function buildRoar(){const g=new THREE.Group(),body=new THREE.Group();g.add(body);
+  const core=new THREE.Mesh(new THREE.CylinderGeometry(34,34,300,20,1,true),new THREE.MeshBasicMaterial({color:new THREE.Color("#fff6c8").multiplyScalar(1.4),transparent:true,opacity:.95,toneMapped:false,depthWrite:false}));core.rotation.z=Math.PI/2;body.add(core);
+  const shell=new THREE.Mesh(new THREE.CylinderGeometry(96,96,320,24,1,true),new THREE.MeshBasicMaterial({color:new THREE.Color("#ffb21e").multiplyScalar(1.2),transparent:true,opacity:.35,toneMapped:false,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));shell.rotation.z=Math.PI/2;body.add(shell);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(96,20,14),shell.material.clone());head.material.opacity=.45;head.position.x=160;body.add(head);
+  const gl=new THREE.Sprite(flameMatO);gl.scale.set(320,320,1);gl.position.x=150;body.add(gl);
+  g.userData.y=60;scene.add(g);return g;}
 function buildStarShot(){const g=new THREE.Group();const m=new THREE.Mesh(new THREE.OctahedronGeometry(10,0),new THREE.MeshStandardMaterial({color:0xffd23a,emissive:0x8a6a00,roughness:.3,metalness:.4}));m.castShadow=true;g.add(m);
   const gl=new THREE.Sprite(flameMatO);gl.scale.set(34,34,1);g.add(gl);g.userData.y=14;scene.add(g);return g;}
 // ---------- Bound Cannon: winged shell with a gold rim and a star face, flies nose-first ----------
@@ -2446,7 +2453,7 @@ function frame(){
     const gho=ghostOn(e,t)&&e.b>0;o.ghost.visible=gho;
     o.wool.visible=woolOn(e,t)&&e.b>0;if(o.wool.visible)o.wool.rotation.y=t/1400;
     o.munch.visible=munchOn(e,t)&&e.b>0;if(o.munch.visible)o.munch.material.opacity=.28+Math.sin(t/160)*.08;
-    o.smark.visible=!!(me&&me.skin==="lion"&&t<(me.kingUntil||0)&&e!==me&&!e.clone&&e.b>0&&!ally(me,e)&&invCount(e)>0);if(o.smark.visible)o.smark.position.y=118*KS+Math.sin(t/200)*4;
+    o.smark.visible=false;if(o.smark.visible)o.smark.position.y=118*KS+Math.sin(t/200)*4;
     o.bubble.visible=!!e.shield&&e.b>0&&!(e.local&&e.shieldUntil-t<6000&&Math.floor(t/150)%2===0);if(o.bubble.visible){{const k=1+Math.sin(t/180)*.03;o.bubble.scale.set(k*KS,k*1.55*KS,k*KS);}o.bubble.rotation.y=-o.root.rotation.y+t/2600;}
     o.mag.visible=(e.local?t<(e.mag||0):e.mgFlag)&&e.b>0;if(o.mag.visible)o.mag.rotation.y=t/300;
     {const hk=e.local?(e.item&&ITEMS[e.item.k]&&ITEMS[e.item.k].hold?e.item.k:null):e.heldK,hn=e.local?(e.item?Math.min(3,e.item.n):0):e.heldN,key=hk&&e.b>0?hk+hn:"";
@@ -2501,7 +2508,7 @@ function frame(){
       if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map((x,i)=>`<div class="s" data-i="${i}"><span>${ITEMS[x.k]?ITEMS[x.k].name:""}</span><b>${iconHTML(x.k)}${live?"<i>∞</i>":(x.n>1?"<i>×"+x.n+"</i>":"")}</b></div>`).join("");}}
     {const S=SPECS[me.skin]||SPECS.dog,sb=$("specBtn");let cls,ic=S.icon,nm=S.name,tm="";const act=specActiveUntil(me,t);
       if(me.bearRage>t){cls="on";ic="🎯";nm="報復連射 "+(me.greedN||0)+"/2";tm=Math.ceil((me.bearRage-t)/1000)+"秒";}
-      else if(act>t){cls="on";const r=(act-t)/1000;tm=r>=60?Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0"):r.toFixed(1)+"秒";if(me.skin==="bear")nm="強欲待機";if(me.skin==="lion")nm=freeSlots(me,t)>0?"押して徴収":"ストック満杯";}
+      else if(act>t){cls="on";const r=(act-t)/1000;tm=r>=60?Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0"):r.toFixed(1)+"秒";if(me.skin==="bear")nm="強欲待機";if(me.skin==="lion")nm="押して発射";}
       else if(canSpec(me,t)){cls="ready";tm="SPEC";}
       else{cls="off";tm=me.spUsed?"使用済み":((me.skin==="bear"||me.skin==="goat")&&me.b<2?"風船2個〜":(me.skin==="sheep"&&me.b>=MAX_BALLOONS?"風船MAX":""));}
       const key=cls+ic+nm+tm;if(sb.dataset.k!==key){sb.dataset.k=key;sb.className="pbtn "+cls;$("spIc").textContent=ic;$("spName").textContent=nm;$("spT").textContent=tm;}}
