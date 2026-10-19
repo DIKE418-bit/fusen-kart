@@ -62,6 +62,13 @@ body{background:var(--night);color:var(--panel);font-family:var(--body);overflow
 .pNav{display:flex;gap:2cqw;width:86%}.pBtn{flex:1;border:0;border-radius:999px;padding:1.3cqw 0;font-family:"Mochiy Pop One",var(--display);font-size:max(14px,2.3cqw);cursor:pointer;touch-action:manipulation}
 .pBtn.next{background:linear-gradient(180deg,#ff7aa8,#ff3f7f);color:#fff;box-shadow:0 .5cqw 0 #b8255a}.pBtn.back{background:#fff3dc;color:#7a4012;box-shadow:0 .5cqw 0 #c8a070}
 .pBtn:active{transform:translateY(.3cqw)}
+#menu{background:#2a3a80 url(art/cpu.jpg) center/cover no-repeat}
+#menu .card{background:rgba(255,250,240,.92);box-shadow:0 0 0 4px rgba(255,255,255,.8),0 6px 0 rgba(47,70,160,.6),0 16px 36px rgba(0,0,0,.35)}
+#menu .wizTop h2{color:#fff;-webkit-text-stroke:.14em #2f6fe0;paint-order:stroke fill;text-shadow:0 .08em 0 #1d4ab0}
+#charPrev{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#ffe9f2,#e6f0ff);border-radius:16px;padding:8px;margin-bottom:8px}
+#charPrev img{width:46%;max-width:200px;aspect-ratio:1.6;object-fit:cover;border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.15)}
+#charPrev b{display:block;font-family:"Mochiy Pop One",var(--display);font-size:1.15rem;color:var(--pop)}#charPrev span{display:block;font-weight:900;font-size:.85rem;color:#5a4a8a;margin-top:4px}
+#charPrev.pop img{animation:cpPop .35s cubic-bezier(.3,1.6,.5,1)}@keyframes cpPop{0%{transform:scale(.8) rotate(-4deg)}100%{transform:scale(1)}}
 #cpuScr{background:#2a3a80 url(art/cpu.jpg) center/cover no-repeat}
 .cCard{position:relative;margin:auto;width:min(460px,94vw);background:rgba(255,250,240,.9);border-radius:22px;padding:16px 18px 14px;display:flex;flex-direction:column;gap:10px;
   box-shadow:0 0 0 4px rgba(255,255,255,.8),0 6px 0 rgba(47,70,160,.6),0 16px 36px rgba(0,0,0,.35);container-type:inline-size}
@@ -274,7 +281,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 </section>
 <section class="screen" id="cpuScr" hidden>
   <div class="cCard">
-    <div class="cTitle">CPUとふうせんの設定</div>
+    <div class="cTitle">CPUの設定</div>
     <div id="cpuSlot"></div>
     <div class="pNav cNav"><button class="pBtn back" id="cpuBack" type="button">← もどる</button><button class="pBtn next" id="cpuNext" type="button">つぎへ →</button></div>
   </div>
@@ -905,7 +912,7 @@ iB.addEventListener("pointercancel",()=>{itemPress=null;});iB.addEventListener("
   box.addEventListener("pointerup",e=>{const d=e.target.closest&&e.target.closest("div[data-i]");if(!d||!me||d._id!==e.pointerId)return;e.preventDefault();useStarSlot(me,+d.dataset.i,now(),e.clientY-(d._sy||e.clientY)>30);});
   box.addEventListener("contextmenu",e=>e.preventDefault());}
 {const sb=$("specBtn");sb.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();if(me)useSpec(me,now());});sb.addEventListener("contextmenu",e=>e.preventDefault());}
-function showSpecNote(){const S=SPECS[myChar];if(S)$("specNote").textContent="SPEC「"+S.icon+" "+S.name+"」："+S.desc;}
+function showSpecNote(){const S=SPECS[myChar];if(S)$("specNote").textContent="SPEC「"+S.icon+" "+S.name+"」："+S.desc;const pv=$("charPrev");if(pv&&ART[myChar]){const im=pv.querySelector("img");if(im.dataset.k!==myChar){im.dataset.k=myChar;im.src=ART[myChar].main;pv.classList.remove("pop");void pv.offsetWidth;pv.classList.add("pop");}$("cpName").textContent=CHARS[myChar];$("cpSpec").textContent=S?S.icon+" "+S.name:"";}}
 let kSteer=0;
 function readSteer(dt){
   let k=0;if(keys.has("ArrowLeft")||keys.has("KeyA"))k--;if(keys.has("ArrowRight")||keys.has("KeyD"))k++;
@@ -2465,12 +2472,13 @@ try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])
 show("title");loadCourse(pickedCourse);showSpecNote();
 // ---------- step-by-step setup after choosing a play mode ----------
 {const F=id=>$(id).closest(".field");
-  const PARTS={chara:[F("nameIn"),F("chars")],course:[F("courses")]};
+  const PARTS={chara:[F("nameIn"),F("chars"),F("colors")],course:[F("courses")]};
+  F("chars").after(F("colors"));F("chars").insertBefore(Object.assign(document.createElement("div"),{id:"charPrev",innerHTML:'<img alt=""><div><b id="cpName"></b><span id="cpSpec"></span></div>'}),$("chars"));
   // CPU + balloon colour screen: one set of fields per mode
   const CPU={online:[F("oCpuNum"),F("oCpuLv"),F("oTeam")],solo:[F("cpuNum"),F("cpuLv"),F("soloTm")],test:[F("testCpu"),F("testLv")]};
   const relabel={oCpuNum:"CPUの人数",oCpuLv:"CPUの強さ",oTeam:"バトル形式",cpuNum:"CPUの人数",cpuLv:"CPUの強さ",soloTm:"チームバトル",testCpu:"CPUの人数",testLv:"CPUの強さ"};
   for(const k in relabel){const l=F(k).querySelector("label");if(l)l.textContent=relabel[k];}
-  for(const m in CPU)for(const el of CPU[m])$("cpuSlot").appendChild(el);$("cpuSlot").appendChild(F("colors"));
+  for(const m in CPU)for(const el of CPU[m])$("cpuSlot").appendChild(el);
   const showCpu=()=>{for(const m in CPU)for(const el of CPU[m])el.hidden=m!==wm;$("cpuScr").scrollTop=0;show("cpuScr");};
   $("passSlot").appendChild(F("passIn"));
   const TITLE={chara:"キャラクター",course:"コース",cpu:"CPUの設定",test:"テストの設定",pass:"合言葉"};
