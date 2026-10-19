@@ -305,6 +305,9 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
     winter:{bpm:120,lead:"bell",bass:"soft",pad:"arp",drums:"KhhhShhh",fill:"KhKhSSSS",vol:.9,bars:[
       ["Am","E6 . C6 . A5 . E6 ."],["F","F6 . C6 . A5 . C6 ."],["C","G6 . E6 . C6 . E6 G6"],["G","D6 . B5 . G5 _ . ."],
       ["Am","A5 . C6 . E6 . A6 ."],["F","A6 . F6 . C6 . A5 ."],["Dm","D6 . F6 . A6 G6 F6 D6"],["E","E6 _ G#5 . B5 . E6 ."]]},
+    spring:{bpm:126,lead:"triangle",bass:"bounce",pad:"stab",drums:"K.hSK.hS",fill:"K.KSKSSS",bars:[
+      ["C","E5 G5 C6 . G5 . E5 G5"],["Am","A5 . C6 E6 . C6 A5 ."],["F","F5 A5 C6 . A5 . F5 A5"],["G","G5 . B5 D6 _ . . ."],
+      ["C","C6 . D6 E6 . G6 E6 ."],["Am","E6 . D6 C6 . A5 C6 ."],["F","D6 . C6 A5 . F5 A5 C6"],["G","B5 . A5 G5 _ . . ."]]},
     star:{bpm:176,lead:"square",bass:"oct",pad:"none",drums:"KhShKhSh",bars:[
       ["C","C6 E6 G6 C7 G6 E6 C6 E6"],["F","C6 F6 A6 C7 A6 F6 C6 F6"],["G","B5 D6 G6 B6 G6 D6 B5 D6"],["C","C6 E6 G6 C7 G6 E6 G6 E6"]]}};
   for(const k in SONGS){const S=SONGS[k];S.steps=[];S.bars.forEach(([c,l],bi)=>{const tk=l.trim().split(/\s+/),ch=chord(c);tk.forEach((x,i)=>{S.steps.push({c:ch,bar:bi,i,n:x==="."||x==="_"?null:midi(x)});});
@@ -1327,6 +1330,80 @@ function buildWinter(){
   winterSnow=add(new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:7,transparent:true,opacity:.85,depthWrite:false})));winterLast=0;}
 function winterTick(t){if(!winterSnow)return;const dt=winterLast?Math.min(.05,(t-winterLast)/1000):0;winterLast=t;const a=winterSnow.geometry.attributes.position,p=a.array;
   for(let i=0;i<p.length;i+=3){p[i+1]-=60*dt;p[i]+=Math.sin(t/900+i)*12*dt;if(p[i+1]<0)p[i+1]+=700;}a.needsUpdate=true;}
+// ---------- Spring Garden: grass field with X-shaped flower hedges, cherry trees, streams and falling petals ----------
+const SG={W:4800,H:3200};
+const sgim=(x,y)=>[Math.round((x-260)/1010*SG.W),Math.round((y-110)/730*SG.H)];
+// X hedges: centre + two arms at ±30°, each arm a row of circles for collision
+const SG_X=[[585,235],[945,235],[550,640],[990,640]].map(([x,y])=>sgim(x,y));
+const SG_ARM=560,SG_ANG=Math.atan2(300,520),SG_R=92;
+const SG_PILLARS=[];
+for(const [x,y] of SG_X)for(const a of [SG_ANG,-SG_ANG])for(let d=-SG_ARM+SG_R;d<=SG_ARM-SG_R+1;d+=150)SG_PILLARS.push({x:Math.round(x+Math.cos(a)*d),y:Math.round(y+Math.sin(a)*d),r:SG_R,hedge:true});
+SG_PILLARS.push({x:sgim(770,425)[0],y:sgim(770,425)[1],r:300,bed:true});
+let springPetals=null,springLast=0;
+function buildSpring(){
+  const cx=W/2,cy=H/2,glowM=new THREE.SpriteMaterial({map:glowTex,color:0xffc56a,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.7});
+  // grass field with scattered petals
+  const field=canvasTex(1024,683,(g,w,h)=>{const gr=g.createRadialGradient(w/2,h/2,50,w/2,h/2,w*.7);gr.addColorStop(0,"#6cc23a");gr.addColorStop(1,"#47992b");g.fillStyle=gr;g.fillRect(0,0,w,h);
+    for(let i=0;i<2600;i++){g.fillStyle=`rgba(${Math.random()<.5?"40,110,30":"170,230,90"},${Math.random()*.35})`;g.fillRect(Math.random()*w,Math.random()*h,2,3);}
+    for(let i=0;i<260;i++){g.fillStyle=Math.random()<.8?"rgba(255,190,215,.9)":"rgba(255,255,255,.9)";g.beginPath();g.ellipse(Math.random()*w,Math.random()*h,3,2,Math.random()*3,0,7);g.fill();}
+    g.strokeStyle="rgba(255,205,225,.8)";g.lineWidth=14;g.strokeRect(7,7,w-14,h-14);});
+  const floor=add(new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshStandardMaterial({map:field,roughness:1,color:new THREE.Color("#c8dcc0")})));floor.rotation.x=-Math.PI/2;floor.position.set(cx,0,cy);floor.receiveShadow=true;
+  // rocky plateau edge, streams and a lower bank
+  const rockM=T("#8b8a86",{roughness:.95}),grassM=T("#5aa83a",{roughness:1}),waterM=new THREE.MeshStandardMaterial({color:new THREE.Color("#5ec4f0").convertSRGBToLinear(),roughness:.1,metalness:.2,emissive:new THREE.Color("#1f6fa8").convertSRGBToLinear(),emissiveIntensity:.15});
+  const B=260,plat=add(new THREE.Mesh(new THREE.BoxGeometry(W+B*2,80,H+B*2),[rockM,rockM,grassM,rockM,rockM,rockM]),true);plat.position.set(cx,-40.5,cy);
+  const water=add(new THREE.Mesh(new THREE.PlaneGeometry(W+B*2+700,H+B*2+700),waterM));water.rotation.x=-Math.PI/2;water.position.set(cx,-70,cy);
+  const bank=add(new THREE.Mesh(new THREE.PlaneGeometry(16000,16000),T("#6cbf45",{roughness:1})));bank.rotation.x=-Math.PI/2;bank.position.set(cx,-90,cy);
+  const fallM=new THREE.MeshBasicMaterial({color:0xeefaff,transparent:true,opacity:.8,side:THREE.DoubleSide});
+  for(const [x,z,ry] of [[-B,600,Math.PI/2],[-B,2400,Math.PI/2],[W+B,900,Math.PI/2],[W+B,2200,Math.PI/2],[1200,-B,0],[3900,H+B,0]]){const f=add(new THREE.Mesh(new THREE.PlaneGeometry(120,70),fallM));f.position.set(x,-35,z);f.rotation.y=ry;}
+  // wooden bridges over the stream at the sides
+  const woodM=T("#a8703c",{roughness:.85});
+  for(const [x,z] of [[-B-170,1600],[W+B+170,1600]]){const br=add(new THREE.Mesh(new THREE.BoxGeometry(360,10,110),woodM),true);br.position.set(x,-36,z);
+    for(const sd of [-1,1]){const r=add(new THREE.Mesh(new THREE.BoxGeometry(360,4,4),woodM));r.position.set(x,-10,z+sd*52);for(let k=-2;k<=2;k++){const po=add(new THREE.Mesh(new THREE.CylinderGeometry(3,3,28,6),woodM));po.position.set(x+k*80,-22,z+sd*52);}}}
+  // fence with banners and lanterns
+  const postM=T("#9a6235",{roughness:.85}),lampM=new THREE.MeshStandardMaterial({color:0xffe2a0,emissive:0xffb347,emissiveIntensity:1.1});
+  const banTex=canvasTex(64,128,(g,w,h)=>{g.fillStyle="#ff5c9a";g.fillRect(0,0,w,h);g.fillStyle="#fff";for(let k=0;k<5;k++){const a=k/5*Math.PI*2-Math.PI/2;g.beginPath();g.ellipse(32+Math.cos(a)*10,54+Math.sin(a)*10,8,6,a,0,7);g.fill();}g.fillStyle="#ffd23a";g.beginPath();g.arc(32,54,5,0,7);g.fill();
+    g.fillStyle="#d8336f";g.beginPath();g.moveTo(0,h);g.lineTo(w/2,h-16);g.lineTo(w,h);g.fill();});
+  const banM=new THREE.MeshStandardMaterial({map:banTex,side:THREE.DoubleSide,roughness:.7});
+  const lantern=(x,z)=>{const p=add(new THREE.Mesh(new THREE.CylinderGeometry(4,5,60,8),postM),true);p.position.set(x,30,z);const l=add(new THREE.Mesh(new THREE.BoxGeometry(16,18,16),lampM));l.position.set(x,68,z);
+    const cap=add(new THREE.Mesh(new THREE.ConeGeometry(13,10,4),postM));cap.position.set(x,82,z);cap.rotation.y=Math.PI/4;const gl=new THREE.Sprite(glowM);gl.scale.set(64,64,1);gl.position.set(x,68,z);CG.add(gl);};
+  const banner=(x,z,ry)=>{const p=add(new THREE.Mesh(new THREE.CylinderGeometry(3,3,120,6),postM),true);p.position.set(x,60,z);const b=add(new THREE.Mesh(new THREE.PlaneGeometry(34,70),banM));b.position.set(x,84,z);b.rotation.y=ry;};
+  const fenceRun=(x1,z1,x2,z2)=>{const L=Math.hypot(x2-x1,z2-z1),n=Math.ceil(L/120);for(let i=0;i<=n;i++){const u=i/n,x=x1+(x2-x1)*u,z=z1+(z2-z1)*u;if(Math.abs(u-.5)<.06)continue;
+      const po=add(new THREE.Mesh(new THREE.CylinderGeometry(3.5,3.5,34,6),postM),true);po.position.set(x,17,z);
+      if(i<n&&Math.abs(u+.5/n-.5)>=.07){const xn=x1+(x2-x1)*(i+1)/n,zn=z1+(z2-z1)*(i+1)/n;for(const h of [13,26]){const r=add(new THREE.Mesh(new THREE.BoxGeometry(L/n,3,3),postM));r.position.set((x+xn)/2,h,(z+zn)/2);r.rotation.y=-Math.atan2(zn-z,xn-x);}}
+      const off=26,ox=z1===z2?0:(x1<cx?-off:off),oz=z1===z2?(z1<cy?-off:off):0;if(i%4===0)lantern(x+ox,z+oz);else if(i%4===2)banner(x+ox,z+oz,z1===z2?0:Math.PI/2);}};
+  const o=-22;fenceRun(o,o,W-o,o);fenceRun(W-o,o,W-o,H-o);fenceRun(W-o,H-o,o,H-o);fenceRun(o,H-o,o,o);
+  // flowers
+  const petalCols=["#ffb3cf","#ffffff","#ff7fae","#ffd8e6","#fff3a0"].map(c=>T(c,{roughness:.6})),flowerGeo=new THREE.SphereGeometry(1,8,6);
+  const flower=(x,z,y,s)=>{const m=add(new THREE.Mesh(flowerGeo,petalCols[Math.floor(Math.random()*petalCols.length)]));m.scale.set(s,s*.55,s);m.position.set(x,y,z);};
+  // X hedges: two rounded bars each, green with flowers on top
+  const hedgeM=T("#3f9a35",{roughness:.95});
+  for(const [x,y] of SG_X)for(const a of [SG_ANG,-SG_ANG]){const len=SG_ARM*2-SG_R*2;
+    const bar=add(new THREE.Mesh(new THREE.BoxGeometry(len,34,SG_R*2),hedgeM),true);bar.position.set(x,17,y);bar.rotation.y=-a;
+    for(const sd of [-1,1]){const cap=add(new THREE.Mesh(new THREE.CylinderGeometry(SG_R,SG_R,34,20),hedgeM),true);cap.position.set(x+Math.cos(a)*sd*len/2,17,y+Math.sin(a)*sd*len/2);}
+    for(let k=0;k<40;k++){const d=(Math.random()-.5)*(len+SG_R),w=(Math.random()-.5)*SG_R*1.6;flower(x+Math.cos(a)*d-Math.sin(a)*w,y+Math.sin(a)*d+Math.cos(a)*w,36+Math.random()*6,9+Math.random()*7);}}
+  // round flower bed in the middle
+  {const bed=SG_PILLARS.find(p=>p.bed),base=add(new THREE.Mesh(new THREE.CylinderGeometry(bed.r,bed.r+10,30,40),hedgeM),true);base.position.set(bed.x,15,bed.y);
+    const dome=add(new THREE.Mesh(new THREE.SphereGeometry(bed.r*.92,30,14,0,Math.PI*2,0,Math.PI/2),T("#4caf3e",{roughness:.95})),true);dome.scale.y=.35;dome.position.set(bed.x,30,bed.y);
+    for(let k=0;k<160;k++){const a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*bed.r*.9,yy=30+Math.sqrt(Math.max(0,1-(r/(bed.r*.92))**2))*bed.r*.32;flower(bed.x+Math.cos(a)*r,bed.y+Math.sin(a)*r,yy+3,10+Math.random()*8);}}
+  // cherry trees around the outside
+  const trunkM2=T("#7a4a2a",{roughness:.9}),blossom=[T("#ffb7d0",{roughness:.8}),T("#ff9cc0",{roughness:.8}),T("#ffd3e2",{roughness:.8})];
+  const sakura=(x,z,s)=>{s=s||1;const tr=add(new THREE.Mesh(new THREE.CylinderGeometry(9*s,14*s,90*s,8),trunkM2),true);tr.position.set(x,-40+45*s,z);
+    for(let k=0;k<7;k++){const a=k/7*Math.PI*2,b=add(new THREE.Mesh(new THREE.SphereGeometry((44+Math.random()*16)*s,12,10),blossom[k%3]),true);b.position.set(x+Math.cos(a)*42*s,-40+(100+Math.random()*30)*s,z+Math.sin(a)*42*s);}
+    const top=add(new THREE.Mesh(new THREE.SphereGeometry(52*s,12,10),blossom[0]),true);top.position.set(x,-40+150*s,z);};
+  for(let i=0;i<34;i++){const side=i%4,u=Math.random();let x,z;const d=120+Math.random()*180;if(side<2){x=-200+u*(W+400);z=side?H+d:-d;}else{z=-200+u*(H+400);x=side===2?-d:W+d;}sakura(x,z,1+Math.random()*.5);}
+  for(const [x,z,sc] of [[-700,-500,2],[W+700,-500,2.2],[-700,H+500,2.1],[W+700,H+500,2],[cx,-900,2.4],[cx,H+900,2.3],[-900,cy,2.2],[W+900,cy,2.1]])sakura(x,z,sc);
+  // flowers along the outer edge
+  for(let i=0;i<220;i++){const side=i%4,u=Math.random();let x,z;const d=40+Math.random()*150;if(side<2){x=u*W;z=side?H+d:-d;}else{z=u*H;x=side===2?-d:W+d;}flower(x,z,4,7+Math.random()*6);}
+  // cabin top-right
+  {const hx=W+380,hz=-120,hb=add(new THREE.Mesh(new THREE.BoxGeometry(240,140,190),woodM),true);hb.position.set(hx,30,hz);
+    const rf=add(new THREE.Mesh(new THREE.CylinderGeometry(0,190,100,4,1),T("#3f4f8a",{roughness:.7})),true);rf.position.set(hx,150,hz);rf.rotation.y=Math.PI/4;rf.scale.set(1,1,.82);
+    for(const dz of [-50,50]){const wn=add(new THREE.Mesh(new THREE.BoxGeometry(4,40,36),lampM));wn.position.set(hx-121,40,hz+dz);}}
+  // falling petals
+  const N=1100,pos=new Float32Array(N*3);for(let i=0;i<N;i++){pos[i*3]=-400+Math.random()*(W+800);pos[i*3+1]=Math.random()*500;pos[i*3+2]=-400+Math.random()*(H+800);}
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  springPetals=add(new THREE.Points(g,new THREE.PointsMaterial({color:0xffa6c9,size:9,transparent:true,opacity:.9,depthWrite:false})));springLast=0;}
+function springTick(t){if(!springPetals)return;const dt=springLast?Math.min(.05,(t-springLast)/1000):0;springLast=t;const a=springPetals.geometry.attributes.position,p=a.array;
+  for(let i=0;i<p.length;i+=3){p[i+1]-=38*dt;p[i]+=(30+Math.sin(t/700+i)*25)*dt;p[i+2]+=Math.cos(t/900+i)*14*dt;if(p[i+1]<0){p[i+1]+=500;p[i]-=400;}}a.needsUpdate=true;}
 const COURSES={
   arena:{name:"バルーンアリーナ",icon:"🏟️",W:4500,H:2800,
     pillars:[{x:2250,y:1400,r:85},{x:1209,y:812,r:52},{x:3291,y:812,r:52},{x:1209,y:1988,r:52},{x:3291,y:1988,r:52},
@@ -1361,7 +1438,14 @@ const COURSES={
     boxes:[[1300,150],[2400,330],[3500,150],[330,1600],[4470,1600],[1150,2880],[2400,2870],[3650,2880],[1500,1200],[3300,1200],[1500,2000],[3300,2000],[2400,950],[2400,2250]],
     dash:[{x:2400,y:150,a:0},{x:4650,y:1600,a:Math.PI/2},{x:2400,y:3050,a:Math.PI},{x:150,y:1600,a:-Math.PI/2}],
     spawns:[[500,450],[4300,450],[500,2990],[4300,2990],[2400,560],[2400,2640],[700,1600],[4100,1600]],
-    build:buildWinter,tick:winterTick}
+    build:buildWinter,tick:winterTick},
+  spring:{name:"スプリングガーデン",icon:"🌸",W:SG.W,H:SG.H,
+    walls:[],
+    pillars:[...SG_PILLARS,{x:0,y:0,r:200,hidden:true},{x:SG.W,y:0,r:200,hidden:true},{x:0,y:SG.H,r:200,hidden:true},{x:SG.W,y:SG.H,r:200,hidden:true}],
+    boxes:[[2400,300],[2400,2900],[350,1600],[4450,1600],[1100,1300],[3700,1300],[1250,2050],[3600,2050],[2400,700],[2400,2300],[1600,1650],[3200,1650],[650,500],[4150,500],[650,2700],[4150,2700]],
+    dash:[{x:2400,y:150,a:0},{x:2400,y:3050,a:Math.PI}],
+    spawns:[[450,350],[4350,350],[450,2850],[4350,2850],[2400,480],[2400,2720],[300,1600],[4500,1600]],
+    build:buildSpring,tick:springTick}
 };
 let loadedCourse=null;
 let miniBg=null;
