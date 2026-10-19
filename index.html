@@ -1082,7 +1082,7 @@ function perimeter(){barrier(W+52,W/2,-12,0);barrier(W+52,W/2,H+12,Math.PI);barr
 function tireStack(p){const n=p.r>60?4:3;for(let i=0;i<n;i++){const tr=add(new THREE.Mesh(new THREE.TorusGeometry(p.r*.78,p.r*.22,10,28),i%2?tireMats[0]:(p.r>60?tireMats[1]:tireMats[2])),true);
     tr.rotation.x=Math.PI/2;tr.position.set(p.x,p.r*.22+i*p.r*.4,p.y);}
   const fill=add(new THREE.Mesh(new THREE.CylinderGeometry(p.r*.62,p.r*.62,(n-1)*p.r*.4+p.r*.2,20),T("#3a3470")),true);fill.position.set(p.x,((n-1)*p.r*.4+p.r*.2)/2+4,p.y);
-  if(p.r>60){const star=add(new THREE.Mesh(new THREE.OctahedronGeometry(34,0),T("#ffc93c",{emissive:new THREE.Color("#5a3a00")})),true);star.position.set(p.x,(n-1)*p.r*.4+p.r*.6,p.y);p.star=star;}}
+  if(p.r>60){const star=add(new THREE.Mesh(new THREE.OctahedronGeometry(34,0),T("#ffc93c",{emissive:new THREE.Color("#5a3a00")})),true);star.position.set(p.x,(n-1)*p.r*.4+p.r*.6,p.y);star.userData.anim=1;p.star=star;}}
 function dashPanels(){for(const dp of DASH){const m=new THREE.Mesh(new THREE.PlaneGeometry(84,52),dashMat);m.rotation.x=-Math.PI/2;m.rotation.z=-dp.a;m.position.set(dp.x,.8,dp.y);CG.add(m);}}
 const showMats={};
 function showMat(k){if(showMats[k])return showMats[k];const d=ITEMS[k];const tx=canvasTex(128,128,(g,w,h)=>{const gr=g.createLinearGradient(0,0,w,h);gr.addColorStop(0,"#fff6c8");gr.addColorStop(1,"#bfe8ff");
@@ -1556,7 +1556,7 @@ function buildNight(){
   for(const [x,z] of [[-700,-500],[W+700,-500],[-700,H+500],[W+700,H+500],[cx,H+900]]){const b=add(new THREE.Mesh(new THREE.ConeGeometry(120,2200,16,1,true),beamM));b.position.set(x,500,z);b.userData.ph=Math.random()*6;nightBits.push(b);}
   const moon=new THREE.Sprite(new THREE.SpriteMaterial({map:canvasTex(128,128,(g,w,h)=>{const gr=g.createRadialGradient(64,64,10,64,64,64);gr.addColorStop(0,"#fffbe8");gr.addColorStop(.55,"#f2ecd0");gr.addColorStop(.6,"rgba(255,240,200,.35)");gr.addColorStop(1,"rgba(255,240,200,0)");g.fillStyle=gr;g.fillRect(0,0,w,h);g.fillStyle="rgba(200,190,160,.5)";g.beginPath();g.arc(52,56,8,0,7);g.arc(76,74,6,0,7);g.fill();}),fog:false,depthWrite:false}));
   moon.scale.set(900,900,1);moon.position.set(W+2600,1700,-2600);CG.add(moon);
-  const blimp=add(new THREE.Mesh(new THREE.SphereGeometry(1,24,16),T("#c8c4d4",{roughness:.4})));blimp.scale.set(260,80,80);blimp.position.set(W+1200,700,-900);nightBits.push(blimp);
+  const blimp=add(new THREE.Mesh(new THREE.SphereGeometry(1,24,16),T("#c8c4d4",{roughness:.4})));blimp.scale.set(260,80,80);blimp.position.set(W+1200,700,-900);blimp.userData.anim=1;nightBits.push(blimp);
   const pad=add(new THREE.Mesh(new THREE.CylinderGeometry(260,260,20,32),T("#3a3a48")));pad.position.set(-560,-100,-420);
   const hT=canvasTex(128,128,(g,w,h)=>{g.fillStyle="#3a3a48";g.fillRect(0,0,w,h);g.strokeStyle="#ffd23a";g.lineWidth=8;g.beginPath();g.arc(64,64,52,0,7);g.stroke();g.fillStyle="#ffd23a";g.font="bold 70px sans-serif";g.textAlign="center";g.textBaseline="middle";g.fillText("H",64,68);});
   const hp=add(new THREE.Mesh(new THREE.CircleGeometry(250,32),new THREE.MeshStandardMaterial({map:hT})));hp.rotation.x=-Math.PI/2;hp.position.set(-560,-89,-420);}
@@ -1624,7 +1624,7 @@ function buildCity(){
   // umbrellas cafe on a neighbour roof, blimp, bridge
   for(const [x,z] of [[-500,-400],[-380,-300],[-560,-220]]){const po=add(new THREE.Mesh(new THREE.CylinderGeometry(2,2,60,6),whiteM2));po.position.set(x,-60,z);for(let k=0;k<8;k++){const sg=add(new THREE.Mesh(new THREE.ConeGeometry(50,18,3,1,true,k*Math.PI/4,Math.PI/4),T(k%2?"#ffffff":"#ffd23a",{side:THREE.DoubleSide})));sg.position.set(x,-26,z);}}
   {const cafe=add(new THREE.Mesh(new THREE.BoxGeometry(500,200,420),T("#d8cbb4",{roughness:.8})));cafe.position.set(-480,-190,-300);}
-  const blimp=add(new THREE.Mesh(new THREE.SphereGeometry(1,24,16),T("#ff8a3d",{roughness:.4})));blimp.scale.set(260,80,80);blimp.position.set(W+1200,800,-900);cityBits.push(blimp);
+  const blimp=add(new THREE.Mesh(new THREE.SphereGeometry(1,24,16),T("#ff8a3d",{roughness:.4})));blimp.scale.set(260,80,80);blimp.position.set(W+1200,800,-900);blimp.userData.anim=1;cityBits.push(blimp);
   {const bm=T("#7a8aa0",{roughness:.6,metalness:.3});const deck=add(new THREE.Mesh(new THREE.BoxGeometry(2600,30,90),bm));deck.position.set(W+2600,-200,-1800);deck.rotation.y=.5;
     for(const o of [-800,800]){const tw=add(new THREE.Mesh(new THREE.BoxGeometry(60,700,60),bm));tw.position.set(W+2600+Math.cos(.5)*o,150,-1800-Math.sin(.5)*o);}}}
 function cityTick(t){for(const b of cityBits)b.position.x=W+1200+Math.sin(t/9000)*900;}
@@ -1778,12 +1778,23 @@ function setEnv(c){const n=!!c.night;
   sky.material.map=c.space?spaceSkyTex:n?nightSkyTex:skyTex;sky.material.needsUpdate=true;scene.fog.color.set(c.space?"#120a30":n?"#2a1c50":"#cdeeff");
   hemi.color.set(n?"#9fb0ff":"#ffffff");hemi.groundColor.set(n?"#3a2a5a":"#9a8a70");hemi.intensity=n?.55:.35;
   sun.color.set(n?"#a8b8ff":"#ffe9c4");sun.intensity=n?.75:2.1;renderer.toneMappingExposure=n?1.15:1.05;}
+// merge static course meshes that share a material into one mesh each: hundreds of flowers/leaves/posts become a few draw calls
+function mergeStatic(){const groups=new Map();
+  for(const m of CG.children.slice()){if(!m.isMesh||Array.isArray(m.material)||Object.keys(m.userData).length||!m.geometry.attributes.position||!m.geometry.attributes.normal)continue;
+    const k=m.material.uuid;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(m);}
+  for(const list of groups.values()){if(list.length<3)continue;let n=0;const parts=[];
+    for(const m of list){m.updateMatrixWorld(true);const g=m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone();g.applyMatrix4(m.matrixWorld);parts.push(g);n+=g.attributes.position.count;}
+    const pos=new Float32Array(n*3),nor=new Float32Array(n*3),uv=new Float32Array(n*2);let o=0;
+    for(const g of parts){const c=g.attributes.position.count;pos.set(g.attributes.position.array,o*3);nor.set(g.attributes.normal.array,o*3);if(g.attributes.uv)uv.set(g.attributes.uv.array,o*2);o+=c;g.dispose();}
+    const mg=new THREE.BufferGeometry();mg.setAttribute("position",new THREE.BufferAttribute(pos,3));mg.setAttribute("normal",new THREE.BufferAttribute(nor,3));mg.setAttribute("uv",new THREE.BufferAttribute(uv,2));
+    const mm=new THREE.Mesh(mg,list[0].material);mm.castShadow=list.some(m=>m.castShadow);mm.receiveShadow=list.some(m=>m.receiveShadow);
+    for(const m of list){CG.remove(m);if(!(typeof keepGeo!=="undefined"&&keepGeo.has(m.geometry)))m.geometry.dispose();}CG.add(mm);}}
 function loadCourse(id){
   const c=COURSES[id]||COURSES.arena;if(loadedCourse===c)return;
   scene.remove(CG);CG.traverse(n=>{if(n.geometry)n.geometry.dispose();if(n.material){(Array.isArray(n.material)?n.material:[n.material]).forEach(m=>{if(!COURSE_KEEP.has(m)&&!(typeof SHARED!=="undefined"&&SHARED.has(m))){if(m.map&&m.map!==dashTex&&m.map!==boxTex)m.map.dispose();m.dispose();}});}});
   CG=new THREE.Group();scene.add(CG);boards=null;
   W=c.W;H=c.H;WALLS=c.walls||[];SOLID=c.solid||null;PILLARS=c.pillars.map(p=>Object.assign({},p));BOXES=c.boxes.map(([x,y])=>({x,y,on:true,back:0}));DASH=c.dash;SPAWNS=c.spawns;
-  c.build();if(!c.night)addClouds();dashPanels();itemBoxes();buildMiniBg();
+  c.build();mergeStatic();if(!c.night)addClouds();dashPanels();itemBoxes();buildMiniBg();
   setEnv(c);
   {const S=Math.max(W/1600,H/1000);sky.position.set(W/2,0,H/2);sky.scale.setScalar(Math.max(1,S*1.1));scene.fog.far=3600*S;scene.fog.near=1300*S;}
   sun.position.set(W/2-500,1100,H/2+600);sun.target.position.set(W/2,0,H/2);
@@ -2231,7 +2242,7 @@ function drawMini(ents){const w=mini.width,h=mini.height,k=w/W;if(Math.abs(h-Mat
     if(e===me){mctx.strokeStyle="#fff";mctx.lineWidth=1.5;mctx.stroke();mctx.beginPath();mctx.moveTo(e.rx*k,e.ry*k);mctx.lineTo(e.rx*k+Math.cos(e.ra)*9,e.ry*k+Math.sin(e.ra)*9);mctx.stroke();}}}
 
 // ---------- loop ----------
-let last=now(),camInit=false,camRoll=0;const camPos=new THREE.Vector3(),camLook=new THREE.Vector3(),tmpV=new THREE.Vector3(),tmpL=new THREE.Vector3();
+let menuSkip=false,last=now(),camInit=false,camRoll=0;const camPos=new THREE.Vector3(),camLook=new THREE.Vector3(),tmpV=new THREE.Vector3(),tmpL=new THREE.Vector3();
 function frame(){
   const t=now(),dt=Math.min(.05,(t-last)/1000);last=t;
   for(const bx of BOXES){if(!bx.on&&t>bx.back)bx.on=true;{const hid=me&&phase==="play"&&pouchBlocked(me,t);bx.mesh.visible=bx.sh.visible=bx.on&&!hid;if(bx.label)bx.label.visible=bx.on&&!hid;}bx.mesh.rotation.y=t/700;bx.mesh.rotation.x=t/1100;bx.mesh.position.y=26+Math.sin(t/400+bx.x)*4;}
@@ -2348,7 +2359,7 @@ function frame(){
     $("speed").classList.remove("on");
     const a=t/9000;camera.position.set(W/2+Math.cos(a)*W*.66,380*Math.max(1,W/2400),H/2+Math.sin(a)*H*.76);camera.lookAt(W/2,0,H/2);
   }
-  renderer.render(scene,camera);
+  menuSkip=!playing&&!menuSkip;if(!menuSkip)renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
 {const wrap=$("cpuLv");for(let i=1;i<=5;i++){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",i===cpuLevel);b.textContent="Lv"+i+" "+CPU_LV[i].name;
@@ -2368,7 +2379,7 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
 let pickedCourse="arena";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])pickedCourse=s.co;}catch(e){}
 {const wrap=$("courses");for(const k in COURSES){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",k===pickedCourse);b.textContent=COURSES[k].icon+" "+COURSES[k].name;
-  b.onclick=()=>{pickedCourse=k;try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");s.co=k;localStorage.setItem("fk-prefs",JSON.stringify(s));}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));loadCourse(k);};wrap.appendChild(b);}}
+  b.onclick=()=>{pickedCourse=k;try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");s.co=k;localStorage.setItem("fk-prefs",JSON.stringify(s));}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));setTimeout(()=>loadCourse(k),30);};wrap.appendChild(b);}}
 show("menu");loadCourse(pickedCourse);showSpecNote();
 {let lastTouch=0;
   document.addEventListener("touchend",e=>{const t=e.target;if(t.closest&&t.closest("input,select,textarea"))return;const n=Date.now();if(n-lastTouch<400||t.closest&&t.closest(".pbtn,#game"))e.preventDefault();lastTouch=n;},{passive:false});
