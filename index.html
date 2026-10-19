@@ -354,7 +354,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 "use strict";
 const $=id=>document.getElementById(id);
 // ---------- sound: all music and effects are synthesized live with Web Audio (original, no audio files) ----------
-const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,songName=null,step=0,nextT=0,tempo=1,timer=null;
+const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,revS,dlS,muted=false,song=null,songName=null,step=0,nextT=0,tempo=1,timer=null;
   try{muted=localStorage.getItem("fk-mute")==="1";}catch(e){}
   const NOTE={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
   const midi=s=>{const m=/^([A-G])(#|b)?(\d)$/.exec(s);return m?12*(+m[3]+1)+NOTE[m[1]]+(m[2]==="#"?1:m[2]==="b"?-1:0):null;};
@@ -363,7 +363,15 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
     try{ctx=new AC();}catch(e){return;}
     const comp=ctx.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=4;comp.connect(ctx.destination);
     master=ctx.createGain();master.gain.value=muted?0:1;master.connect(comp);
-    musG=ctx.createGain();musG.gain.value=.16;musG.connect(master);sfxG=ctx.createGain();sfxG.gain.value=.5;sfxG.connect(master);
+    musG=ctx.createGain();musG.gain.value=.16;musG.connect(master);
+    // concert-hall reverb + stereo echo on the music for a fuller, "orchestral" sound
+    const len=ctx.sampleRate*2.4,ir=ctx.createBuffer(2,len,ctx.sampleRate);for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6);}
+    const rev=ctx.createConvolver();rev.buffer=ir;const revG=ctx.createGain();revG.gain.value=.55;rev.connect(revG);revG.connect(master);
+    revS=ctx.createGain();revS.gain.value=.16;revS.connect(rev);
+    const dl=ctx.createDelay(1);dl.delayTime.value=.32;const fb=ctx.createGain();fb.gain.value=.28;const dlF=ctx.createBiquadFilter();dlF.type="lowpass";dlF.frequency.value=2600;
+    dl.connect(dlF);dlF.connect(fb);fb.connect(dl);const pan=ctx.createStereoPanner?ctx.createStereoPanner():null;if(pan){pan.pan.value=.45;dlF.connect(pan);pan.connect(revS);pan.connect(master);}else dlF.connect(master);
+    dlS=ctx.createGain();dlS.gain.value=.10;dlS.connect(dl);
+    musG.connect(revS);musG.connect(dlS);sfxG=ctx.createGain();sfxG.gain.value=.5;sfxG.connect(master);
     noiseBuf=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
     timer=setInterval(pump,25);}
   // one voice: plucky envelope (decays over dur); o.hold keeps the level up for most of the note
@@ -375,6 +383,13 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
     if(hp){const f=ctx.createBiquadFilter();f.type="highpass";f.frequency.value=hp;n.connect(f);n=f;}
     if(lp){const f=ctx.createBiquadFilter();f.type="lowpass";f.frequency.value=lp;n.connect(f);n=f;}
     const g=ctx.createGain();g.gain.setValueAtTime(Math.max(.0002,vol),t0);g.gain.exponentialRampToValueAtTime(.0001,t0+dur);n.connect(g);g.connect(dest);s.start(t0,Math.random()*.5);s.stop(t0+dur+.03);}
+  // filtered voice for brass / strings: detuned saws through a low-pass with its own envelope
+  function fvoice(f,t0,dur,vol,o){o=o||{};const g=ctx.createGain(),lp=ctx.createBiquadFilter();lp.type="lowpass";lp.Q.value=o.q||1;
+    const c0=o.cut||1800;lp.frequency.setValueAtTime(o.sweep?c0*.35:c0,t0);if(o.sweep)lp.frequency.exponentialRampToValueAtTime(c0,t0+.08);lp.frequency.exponentialRampToValueAtTime(Math.max(200,c0*.5),t0+dur);
+    const a=o.a||.02;g.gain.setValueAtTime(.0001,t0);g.gain.linearRampToValueAtTime(vol,t0+a);g.gain.setValueAtTime(vol,t0+Math.max(a,dur-(o.r||.15)));g.gain.exponentialRampToValueAtTime(.0001,t0+dur+(o.r||.15));
+    lp.connect(g);g.connect(musG);for(const dt of (o.dets||[-9,9])){const os=ctx.createOscillator();os.type=o.type||"sawtooth";os.frequency.value=f;os.detune.value=dt;os.connect(lp);os.start(t0);os.stop(t0+dur+(o.r||.15)+.05);}}
+  const crash=(t,v)=>noise(t,1.6,v*.5,musG,5000);
+  const tom=(t,f,v)=>osc("sine",f,t,.22,v,musG,{to:f*.5,slide:.2});
   const kick=(t,v)=>osc("sine",150,t,.2,v,musG,{to:42,slide:.13});
   const snare=(t,v)=>{noise(t,.16,v*.7,musG,1400);osc("triangle",190,t,.09,v*.5,musG);};
   const hat=(t,v)=>noise(t,.035,v*.32,musG,7000);
@@ -382,46 +397,68 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
   function chord(nm){const m=/^([A-G])(#|b)?(m)?(maj7|7)?$/.exec(nm);const r=48+NOTE[m[1]]+(m[2]==="#"?1:m[2]==="b"?-1:0);const n=[r,r+(m[3]?3:4),r+7];if(m[4]==="7")n.push(r+10);if(m[4]==="maj7")n.push(r+11);return n;}
   // songs: each bar = [chord, 8 eighth-note lead tokens]; "." rest, "_" holds the previous note
   const SONGS={
-    menu:{bpm:112,lead:"triangle",bass:"soft",pad:"arp",drums:"K.h.S.h.",vol:.8,bars:[
+    title:{bpm:146,lead:"horn",bass:"oct",pad:"none",drums:"KhShKKSh",fill:"KSKSSSSS",layers:"str brass bell sub crash tom",bars:[
+      ["C","G5 . C6 . E6 . G6 ."],["G","F6 _ E6 . D6 . B5 ."],["Am","C6 . E6 . A6 . G6 ."],["F","F6 _ E6 . C6 _ . ."],
+      ["C","E6 . G6 . C7 . B6 ."],["G","A6 . G6 . F6 . D6 ."],["F","E6 . F6 . A6 . G6 F6"],["G","G6 _ _ . B6 _ D7 ."]]},
+    modes:{bpm:124,lead:"square",bass:"bounce",pad:"stab",drums:"K.hSKKhS",fill:"KSKSKSSS",layers:"str bell sub crash tom",bars:[
+      ["F","A5 . C6 . F6 . E6 ."],["C","E6 . D6 . C6 . G5 ."],["Dm","F5 . A5 . D6 . C6 ."],["Bb","D6 _ C6 . Bb5 _ . ."],
+      ["F","C6 . F6 . A6 . G6 ."],["C","G6 . E6 . C6 . E6 ."],["Bb","F6 . D6 . Bb5 . D6 ."],["C","E6 _ _ . G6 _ . ."]]},
+    pass:{bpm:100,lead:"flute",bass:"soft",pad:"arp",drums:"K..hS..h",layers:"str bell",vol:.85,bars:[
+      ["G","B5 . D6 . G6 _ . ."],["Em","G6 . E6 . B5 _ . ."],["C","C6 . E6 . G6 . E6 ."],["D","F#6 _ _ . D6 _ . ."],
+      ["G","D6 . B5 . G5 . B5 ."],["Em","E6 . G6 . B6 _ . ."],["C","A6 . G6 . E6 . C6 ."],["D","D6 _ _ . . . . ."]]},
+    setup:{bpm:134,lead:"synth",bass:"oct",pad:"stab",drums:"KhShKhSh",fill:"KhSSKSSS",layers:"brass sub crash tom",bars:[
+      ["D","F#5 . A5 D6 . A5 F#5 A5"],["A","E5 . A5 C#6 . A5 E5 A5"],["Bm","F#5 . B5 D6 . B5 F#5 B5"],["G","G5 . B5 D6 _ . . ."],
+      ["D","A5 . D6 F#6 . E6 D6 ."],["A","C#6 . E6 A6 . G6 E6 ."],["G","B5 . D6 G6 . F#6 E6 ."],["A","E6 _ _ . A6 _ . ."]]},
+    chara:{bpm:120,lead:"bell",bass:"bounce",pad:"none",drums:"K.hSK.hS",layers:"str pizz sub crash",vol:.9,bars:[
+      ["Bb","D6 . F6 . Bb6 . F6 ."],["Gm","G6 . D6 . Bb5 . D6 ."],["Eb","Eb6 . G6 . Bb6 . G6 ."],["F","F6 _ A6 . C7 _ . ."],
+      ["Bb","Bb6 . A6 . F6 . D6 ."],["Gm","G6 . F6 . D6 . Bb5 ."],["Eb","C6 . Eb6 . G6 . F6 Eb6"],["F","D6 _ _ . F6 _ . ."]]},
+    course:{bpm:112,lead:"horn",bass:"soft",pad:"arp",drums:"K.hSKKhS",fill:"KhKSKSSS",layers:"str bell sub crash tom",bars:[
+      ["Am","E6 . A5 . C6 . E6 ."],["F","F6 . C6 . A5 . C6 ."],["C","G6 . E6 . C6 . G5 ."],["G","B5 _ D6 . G6 _ . ."],
+      ["Am","A6 . G6 . E6 . C6 ."],["F","C7 . A6 . F6 . A6 ."],["Dm","D6 . F6 . A6 . G6 F6"],["E","E6 _ _ . G#6 _ B6 ."]]},
+    result:{bpm:96,lead:"triangle",bass:"soft",pad:"arp",drums:"K..hS..h",layers:"str bell",vol:.85,bars:[
+      ["Fmaj7","A5 . C6 . E6 _ . ."],["Em7","G5 . B5 . D6 _ . ."],["Dm7","F5 . A5 . C6 . E6 ."],["Cmaj7","G5 _ _ . E5 _ . ."]]},
+    menu:{bpm:104,lead:"triangle",bass:"soft",pad:"arp",drums:"K.h.S.h.",vol:.8,layers:"str bell",bars:[
       ["Cmaj7","E5 . . G5 . . B5 ."],["Am7","C6 . . A5 . . E5 ."],["Dm7","F5 . . A5 . . C6 ."],["G7","B5 . . D6 . . F6 ."],
       ["Cmaj7","G5 . E5 . C6 _ _ ."],["Am7","A5 . C6 . E6 _ _ ."],["Dm7","D6 . C6 . A5 . F5 ."],["G7","G5 _ _ . . . . ."]]},
-    arena:{bpm:150,lead:"square",bass:"oct",pad:"none",drums:"KhShKKSh",fill:"KSKSSSSS",bars:[
+    arena:{bpm:150,lead:"square",bass:"oct",pad:"none",drums:"KhShKKSh",fill:"KSKSSSSS",layers:"str brass sub crash tom",bars:[
       ["C","E5 . G5 E5 C6 . G5 ."],["G","D5 . G5 D5 B5 . A5 G5"],["Am","C5 . E5 A5 C6 . B5 A5"],["F","A5 G5 F5 . C5 . F5 G5"],
       ["C","E5 . G5 E5 C6 . D6 E6"],["G","D6 _ B5 . G5 A5 B5 D6"],["Am","C6 B5 A5 . E5 . A5 B5"],["F","C6 _ A5 . G5 _ . ."],
       ["F","A5 . A5 C6 F6 . E6 C6"],["G","D6 . B5 G5 D6 . C6 B5"],["Em","G5 . B5 E6 G6 . E6 B5"],["Am","C6 . A5 . E5 . A5 C6"],
       ["F","F6 . E6 C6 A5 . C6 F6"],["G","G6 . F6 D6 B5 . D6 G6"],["C","E6 D6 C6 . G5 . E5 G5"],["G","D6 _ _ . B5 _ D6 ."]]},
-    park:{bpm:132,lead:"square",bass:"bounce",pad:"stab",drums:"K.S.KhSh",fill:"K.S.KSSS",bars:[
+    park:{bpm:132,lead:"square",bass:"bounce",pad:"stab",drums:"K.S.KhSh",fill:"K.S.KSSS",layers:"str pizz sub crash tom",bars:[
       ["F","C6 . A5 . C6 . F6 ."],["Dm","D6 . A5 . F5 . A5 ."],["Bb","Bb5 . D6 . F6 . D6 Bb5"],["C","C6 . E6 . G6 _ E6 ."],
       ["F","F6 . C6 . A5 . C6 ."],["Dm","D6 . F6 . A5 . F5 ."],["Bb","G5 . Bb5 . D6 . C6 Bb5"],["C","A5 . G5 . F5 _ . ."]]},
-    summer:{bpm:118,lead:"steel",bass:"calypso",pad:"stab",drums:"KhhShKSh",fill:"KhKSKSSS",bars:[
+    summer:{bpm:118,lead:"steel",bass:"calypso",pad:"stab",drums:"KhhShKSh",fill:"KhKSKSSS",layers:"str bell sub crash",bars:[
       ["G","D6 . B5 D6 . B5 G5 ."],["Em","E6 . B5 E6 . G6 E6 ."],["C","E6 . C6 E6 . G6 E6 C6"],["D","D6 . F#6 D6 A5 . D6 ."],
       ["G","B5 . D6 G6 . D6 B5 ."],["Em","G5 . B5 E6 . D6 B5 ."],["C","C6 . E6 G6 E6 C6 A5 ."],["D","A5 . F#5 . D5 . . ."]]},
-    winter:{bpm:120,lead:"bell",bass:"soft",pad:"arp",drums:"KhhhShhh",fill:"KhKhSSSS",vol:.9,bars:[
+    winter:{bpm:120,lead:"bell",bass:"soft",pad:"arp",drums:"KhhhShhh",fill:"KhKhSSSS",vol:.9,layers:"str bell sub crash",bars:[
       ["Am","E6 . C6 . A5 . E6 ."],["F","F6 . C6 . A5 . C6 ."],["C","G6 . E6 . C6 . E6 G6"],["G","D6 . B5 . G5 _ . ."],
       ["Am","A5 . C6 . E6 . A6 ."],["F","A6 . F6 . C6 . A5 ."],["Dm","D6 . F6 . A6 G6 F6 D6"],["E","E6 _ G#5 . B5 . E6 ."]]},
-    spring:{bpm:126,lead:"triangle",bass:"bounce",pad:"stab",drums:"K.hSK.hS",fill:"K.KSKSSS",bars:[
+    spring:{bpm:126,lead:"triangle",bass:"bounce",pad:"stab",drums:"K.hSK.hS",fill:"K.KSKSSS",layers:"str bell pizz sub crash",bars:[
       ["C","E5 G5 C6 . G5 . E5 G5"],["Am","A5 . C6 E6 . C6 A5 ."],["F","F5 A5 C6 . A5 . F5 A5"],["G","G5 . B5 D6 _ . . ."],
       ["C","C6 . D6 E6 . G6 E6 ."],["Am","E6 . D6 C6 . A5 C6 ."],["F","D6 . C6 A5 . F5 A5 C6"],["G","B5 . A5 G5 _ . . ."]]},
-    autumn:{bpm:108,lead:"koto",bass:"soft",pad:"stab",drums:"K.h.Sh.h",fill:"K.KhSSSS",bars:[
+    autumn:{bpm:108,lead:"koto",bass:"soft",pad:"stab",drums:"K.h.Sh.h",fill:"K.KhSSSS",layers:"str bell sub crash",bars:[
       ["Dm","D6 . A5 . F5 G5 A5 ."],["Bb","Bb5 . F5 . D6 . C6 ."],["C","C6 . G5 . E5 F5 G5 ."],["Dm","A5 _ F5 . D5 . . ."],
       ["F","F5 . A5 C6 . A5 C6 D6"],["C","E6 . D6 C6 . G5 A5 ."],["Bb","D6 . C6 Bb5 . F5 G5 ."],["A","A5 _ C#6 . E6 . . ."]]},
-    night:{bpm:112,lead:"synth",bass:"oct",pad:"stab",drums:"KhShKhSh",fill:"KhSSKSSS",bars:[
+    night:{bpm:112,lead:"synth",bass:"oct",pad:"stab",drums:"KhShKhSh",fill:"KhSSKSSS",layers:"str sub crash tom",bars:[
       ["Am","A5 . C6 . E6 . D6 C6"],["F","C6 _ A5 . F5 . A5 ."],["C","G5 . C6 . E6 . G6 E6"],["G","D6 _ B5 . G5 _ . ."],
       ["Am","E6 . A6 . G6 E6 D6 C6"],["F","A5 . C6 . F6 . E6 D6"],["C","E6 . G6 . C7 _ B6 G6"],["E","G#6 _ E6 . B5 _ . ."]]},
-    city:{bpm:128,lead:"square",bass:"bounce",pad:"stab",drums:"KhShKKSh",fill:"KSKSKSSS",bars:[
+    city:{bpm:128,lead:"square",bass:"bounce",pad:"stab",drums:"KhShKKSh",fill:"KSKSKSSS",layers:"str brass sub crash tom",bars:[
       ["F","A5 . C6 A5 . F5 G5 A5"],["G","B5 . D6 B5 . G5 A5 B5"],["Em","G5 . B5 E6 . D6 B5 G5"],["Am","A5 _ C6 . E6 _ . ."],
       ["F","F6 . E6 C6 . A5 C6 F6"],["G","D6 . B5 G5 . B5 D6 G6"],["C","E6 . D6 C6 . G5 E5 G5"],["G","D6 _ _ . G6 _ . ."]]},
-    space:{bpm:120,lead:"synth",bass:"soft",pad:"arp",drums:"K.hSK.hS",fill:"KhKSKSSS",vol:.9,bars:[
+    space:{bpm:120,lead:"synth",bass:"soft",pad:"arp",drums:"K.hSK.hS",fill:"KhKSKSSS",vol:.9,layers:"str bell sub crash",bars:[
       ["Am","E6 . A6 . E6 . C6 ."],["F","C6 . F6 . C6 . A5 ."],["C","G5 . C6 . E6 . G6 ."],["G","D6 _ B5 . G5 _ . ."],
       ["Am","A6 . G6 E6 . D6 E6 ."],["F","F6 . E6 C6 . A5 C6 ."],["Dm","D6 . F6 A6 . G6 F6 ."],["E","E6 _ _ . G#6 _ B6 ."]]},
-    star:{bpm:176,lead:"square",bass:"oct",pad:"none",drums:"KhShKhSh",bars:[
+    star:{bpm:176,lead:"square",bass:"oct",pad:"none",drums:"KhShKhSh",layers:"brass sub crash",bars:[
       ["C","C6 E6 G6 C7 G6 E6 C6 E6"],["F","C6 F6 A6 C7 A6 F6 C6 F6"],["G","B5 D6 G6 B6 G6 D6 B5 D6"],["C","C6 E6 G6 C7 G6 E6 G6 E6"]]}};
   for(const k in SONGS){const S=SONGS[k];S.steps=[];S.bars.forEach(([c,l],bi)=>{const tk=l.trim().split(/\s+/),ch=chord(c);tk.forEach((x,i)=>{S.steps.push({c:ch,bar:bi,i,n:x==="."||x==="_"?null:midi(x)});});
       // note lengths: count following "_" tokens
       tk.forEach((x,i)=>{if(x==="."||x==="_")return;let len=1;while(tk[i+len]==="_")len++;S.steps[bi*8+i].len=len;});});}
   function playStep(S,st,t,d){const s=S.steps[st],v=S.vol||1,c=s.c,i=s.i;
     if(s.n){const f=hz(s.n),dur=d*(s.len||1)*.95;
-      if(S.lead==="synth"){osc("sawtooth",f,t,dur+.1,.11*v,musG,{hold:.6});osc("sawtooth",f,t,dur+.1,.08*v,musG,{hold:.6,det:-14});osc("square",f/2,t,dur,.05*v,musG,{hold:.6});}
+      if(S.lead==="horn"){fvoice(f,t,dur,.1*v,{a:.03,r:.12,cut:2400,sweep:1,q:1.5});osc("triangle",f,t,dur+.1,.12*v,musG,{hold:.6});}
+      else if(S.lead==="flute"){osc("sine",f,t,dur+.15,.3*v,musG,{a:.04,hold:.7});osc("triangle",f*2,t,dur,.04*v,musG,{a:.05,hold:.6});}
+      else if(S.lead==="synth"){osc("sawtooth",f,t,dur+.1,.11*v,musG,{hold:.6});osc("sawtooth",f,t,dur+.1,.08*v,musG,{hold:.6,det:-14});osc("square",f/2,t,dur,.05*v,musG,{hold:.6});}
       else if(S.lead==="koto"){osc("triangle",f,t,dur+.35,.36*v,musG,{to:f*.985,slide:.3});osc("sine",f*2,t,.12,.12*v,musG);}
       else if(S.lead==="bell"){osc("sine",f,t,dur+.6,.3*v,musG);osc("sine",f*3,t,.25,.07*v,musG);osc("sine",f*2,t,.4,.08*v,musG);}
       else if(S.lead==="steel"){osc("sine",f,t,dur+.25,.34*v,musG);osc("sine",f*2.01,t,.18,.1*v,musG);}
@@ -434,6 +471,14 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
     else if(S.bass==="soft"){if(i===0||i===4)osc("sine",hz(root),t,d*3.5,.5*v,musG,{hold:.4});}
     if(S.pad==="arp"){const n=c[i%c.length]+12;osc("sine",hz(n),t,d*1.5,.12*v,musG);}
     else if(S.pad==="stab"&&i%2===1)for(const n of c.slice(0,3))osc("triangle",hz(n+12),t,d*.6,.07*v,musG);
+    const L=S.layers||"";
+    if(L.includes("str")&&i===0)for(const n of c)fvoice(hz(n+12),t,d*8,.035*v,{a:.35,r:.6,cut:2200,dets:[-12,0,12]});
+    if(L.includes("brass")&&(i===0||i===3||i===6))for(const n of c.slice(0,3))fvoice(hz(n+12),t,d*(i===6?2:1.4),.05*v,{a:.015,r:.08,cut:2600,sweep:1,q:2});
+    if(L.includes("bell")&&i%2===0){const n=c[(i/2+s.bar)%c.length]+36;osc("sine",hz(n),t+d*.5,.5,.05*v,musG);osc("sine",hz(n)*4,t+d*.5,.15,.012*v,musG);}
+    if(L.includes("pizz"))osc("triangle",hz(c[i%c.length]+24),t,d*.5,.09*v,musG);
+    if(L.includes("sub")&&i%4===0)osc("sine",hz(root-12),t,d*3.8,.35*v,musG,{hold:.6});
+    if(L.includes("crash")&&i===0&&s.bar%4===0)crash(t,.7*v);
+    if(L.includes("tom")&&s.bar===S.bars.length-1&&i>=4)tom(t,[0,0,0,0,220,180,150,110][i],.6*v);
     const lastBar=s.bar===S.bars.length-1&&S.fill,dp=(lastBar?S.fill:S.drums)[i];
     if(dp==="K")kick(t,.75*v);else if(dp==="S")snare(t,.55*v);hat(t+(dp==="h"?0:d/2),.5*v);if(dp==="h")hat(t+d/2,.35*v);}
   function pump(){if(!ctx||!song)return;const d=60/song.bpm/2/tempo;if(nextT<ctx.currentTime-.05)nextT=ctx.currentTime+.03;while(nextT<ctx.currentTime+.3){playStep(song,step,nextT,d);nextT+=d;step=(step+1)%song.steps.length;}}
@@ -556,6 +601,8 @@ const CPU_NAMES=["ポン太","ミルク","ガブ","モモ","コタロウ","ル�
 const DRIFT_COL=["#ffffff","#4fc3ff","#ff9a2e","#c45cff"];
 
 const scr={title:$("title"),modes:$("modes"),passScr:$("passScr"),cpuScr:$("cpuScr"),menu:$("menu"),lobby:$("lobby"),result:$("result")};
+function screenSong(){if(phase==="over")return "result";const on=k=>scr[k]&&!scr[k].hidden;if(on("title"))return "title";if(on("modes"))return "modes";if(on("passScr"))return "pass";if(on("cpuScr"))return "setup";
+  if(on("menu"))return $("menu").classList.contains("mapBg")?"course":"chara";if(on("lobby"))return "menu";if(on("result"))return "result";return "menu";}
 function menuCovered(){for(const k of ["title","modes","passScr","cpuScr","menu"])if(scr[k]&&!scr[k].hidden)return true;return false;}
 function show(name){for(const k in scr)scr[k].hidden=k!==name;$("hud").hidden=!!name;$("mini").hidden=!!name;}
 
@@ -2370,7 +2417,7 @@ function frame(){
     soundWatch(t);
     pushPresence();
   }
-  SND.pump();SND.music(!me||phase==="menu"||phase==="lobby"?"menu":phase==="over"?null:(me&&me.star&&t<me.star?"star":courseId),phase==="play"&&mode!=="test"&&endAt-t<30000?1.12:1);
+  SND.pump();SND.music(playing&&phase!=="over"?(me&&me.star&&t<me.star?"star":courseId):screenSong(),phase==="play"&&mode!=="test"&&endAt-t<30000?1.12:1);
   for(const e of allEnts()){const k=e.local?1:Math.min(1,dt*14);e.rx+=(e.x-e.rx)*k;e.ry+=(e.y-e.ry)*k;e.ra+=angDiff(e.a,e.ra)*k;}
 
   // karts
