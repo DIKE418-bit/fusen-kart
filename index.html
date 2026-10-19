@@ -302,6 +302,9 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
     summer:{bpm:118,lead:"steel",bass:"calypso",pad:"stab",drums:"KhhShKSh",fill:"KhKSKSSS",bars:[
       ["G","D6 . B5 D6 . B5 G5 ."],["Em","E6 . B5 E6 . G6 E6 ."],["C","E6 . C6 E6 . G6 E6 C6"],["D","D6 . F#6 D6 A5 . D6 ."],
       ["G","B5 . D6 G6 . D6 B5 ."],["Em","G5 . B5 E6 . D6 B5 ."],["C","C6 . E6 G6 E6 C6 A5 ."],["D","A5 . F#5 . D5 . . ."]]},
+    winter:{bpm:120,lead:"bell",bass:"soft",pad:"arp",drums:"KhhhShhh",fill:"KhKhSSSS",vol:.9,bars:[
+      ["Am","E6 . C6 . A5 . E6 ."],["F","F6 . C6 . A5 . C6 ."],["C","G6 . E6 . C6 . E6 G6"],["G","D6 . B5 . G5 _ . ."],
+      ["Am","A5 . C6 . E6 . A6 ."],["F","A6 . F6 . C6 . A5 ."],["Dm","D6 . F6 . A6 G6 F6 D6"],["E","E6 _ G#5 . B5 . E6 ."]]},
     star:{bpm:176,lead:"square",bass:"oct",pad:"none",drums:"KhShKhSh",bars:[
       ["C","C6 E6 G6 C7 G6 E6 C6 E6"],["F","C6 F6 A6 C7 A6 F6 C6 F6"],["G","B5 D6 G6 B6 G6 D6 B5 D6"],["C","C6 E6 G6 C7 G6 E6 G6 E6"]]}};
   for(const k in SONGS){const S=SONGS[k];S.steps=[];S.bars.forEach(([c,l],bi)=>{const tk=l.trim().split(/\s+/),ch=chord(c);tk.forEach((x,i)=>{S.steps.push({c:ch,bar:bi,i,n:x==="."||x==="_"?null:midi(x)});});
@@ -309,7 +312,8 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
       tk.forEach((x,i)=>{if(x==="."||x==="_")return;let len=1;while(tk[i+len]==="_")len++;S.steps[bi*8+i].len=len;});});}
   function playStep(S,st,t,d){const s=S.steps[st],v=S.vol||1,c=s.c,i=s.i;
     if(s.n){const f=hz(s.n),dur=d*(s.len||1)*.95;
-      if(S.lead==="steel"){osc("sine",f,t,dur+.25,.34*v,musG);osc("sine",f*2.01,t,.18,.1*v,musG);}
+      if(S.lead==="bell"){osc("sine",f,t,dur+.6,.3*v,musG);osc("sine",f*3,t,.25,.07*v,musG);osc("sine",f*2,t,.4,.08*v,musG);}
+      else if(S.lead==="steel"){osc("sine",f,t,dur+.25,.34*v,musG);osc("sine",f*2.01,t,.18,.1*v,musG);}
       else if(S.lead==="triangle")osc("triangle",f,t,dur+.15,.34*v,musG,{hold:.5});
       else{osc("square",f,t,dur,.17*v,musG,{hold:.6});osc("square",f,t,dur,.06*v,musG,{hold:.6,det:12});}}
     const root=c[0]-12;
@@ -474,7 +478,7 @@ let mode=null,phase="menu",phaseAt=0,round=0,endAt=0;
 function allEnts(){const a=[me,...bots,...clones];if(mode==="online"){for(const e of remotes.values())a.push(e);for(const e of remoteBots.values())a.push(e);for(const e of remoteClones.values())a.push(e);}return a.filter(Boolean);}
 function roundEnts(){return allEnts().filter(e=>e.local||e.r===round);}
 function scoreOf(id){let s=0;for(const e of allEnts()){if(e.id===id)continue;for(const h of e.h)if(h[0]===id&&h[2]===1)s++;}return s;}
-function spawn(e,i){const s=SPAWNS[i%SPAWNS.length];e.x=e.rx=s[0];e.y=e.ry=s[1];e.a=e.ra=Math.atan2(H/2-s[1],W/2-s[0]);
+function spawn(e,i){const s=SPAWNS[i%SPAWNS.length];e.x=e.rx=s[0];e.y=e.ry=s[1];e.a=e.ra=Math.atan2(H/2-s[1],W/2-s[0]);e.mvA=e.a;
   Object.assign(e,{v:0,b:3,prevB:3,inv:0,boost:0,spin:0,item:null,stock:[],regen:0,drifting:false,driftT:0,pj:[],h:[],shield:0,jump:0,mag:0,inkUntil:0,stealN:0,heartN:0,growlUntil:0,woolUntil:0,woolN:0,munchUntil:0,kingUntil:0,kingCd:0,sqCd:{},gained:new Set(),star:0,mirrorUntil:0,starStock:[],starCd:[0,0],ramN:0,spUsed:false,spDoneAt:0,ghostUntil:0,iceUntil:0,bearArm:0,bearRage:0,bearCd:0,dashUntil:0,pouchUntil:0,frozenUntil:0,ltTarget:null});}
 
 // ---------- physics ----------
@@ -621,7 +625,7 @@ function drive(e,steer,dHeld,dt,t,go){
     } else e.a+=steer*2.5*spd*dt;
   } else e.v*=Math.pow(.1,dt);
   e.steer=steer;
-  const px=e.x,py=e.y;if(t<(e.knockUntil||0))knockMove(e,dt);else{e.x+=Math.cos(e.a)*e.v*dt;e.y+=Math.sin(e.a)*e.v*dt;}
+  const px=e.x,py=e.y;if(t<(e.knockUntil||0))knockMove(e,dt);else{let ma=e.a;if(loadedCourse&&loadedCourse.ice){if(e.mvA===undefined)e.mvA=e.a;e.mvA+=angDiff(e.a,e.mvA)*Math.min(1,dt*3.2);ma=e.mvA;}else e.mvA=e.a;e.x+=Math.cos(ma)*e.v*dt;e.y+=Math.sin(ma)*e.v*dt;}
   let hitSolid=false;if(SOLID&&SOLID(e.x,e.y)){hitSolid=true;if(!SOLID(e.x,py))e.y=py;else if(!SOLID(px,e.y))e.x=px;else{e.x=px;e.y=py;}}
   // obstacles: slow down, but never below 65% of max speed
   const floorV=OBSTACLE_FLOOR*max;const slow=()=>{if(e===me&&e.v>floorV*1.05)sfx("bump",1,.35);if(e.v>floorV)e.v=Math.max(floorV,e.v*.8);};
@@ -1254,6 +1258,75 @@ function buildSummer(){
   const tubeC=["#ff5a6e","#ffd23a","#c070ff","#3fd0c8"];for(let i=0;i<10;i++){const [x,y]=summerPt(1.05+Math.random()*.25,Math.random()*7);const tb=add(new THREE.Mesh(new THREE.TorusGeometry(16,6,8,16),T(tubeC[i%4])));tb.rotation.x=Math.PI/2;tb.position.set(x,-12,y);tb.userData.bob=Math.random()*6;}
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2,[x,y]=summerPt(1.55+Math.random()*.2,a);const isl2=add(new THREE.Mesh(new THREE.SphereGeometry(1,16,10),T("#e9cf92")));isl2.scale.set(220,40,160);isl2.position.set(x,-20,y);palm(x,y,1.6);palm(x+80,y+40,1.3);}
 }
+// ---------- Winter Rink: a frozen rink with ice-block corners, lamps, snowmen and falling snow ----------
+const WR={W:4800,H:3200};
+// map a point from the reference picture (rink spans x 200..1340, y 110..840) to course coords
+const wim=(x,y)=>[Math.round((x-200)/1140*WR.W),Math.round((y-110)/730*WR.H)];
+const wrect=(a,b,c,d)=>[...wim(a,b),...wim(c,d)];
+const WR_WALLS=[wrect(400,180,660,250),wrect(400,250,500,360),wrect(860,180,1125,250),wrect(1040,250,1140,360),
+  wrect(345,500,465,650),wrect(345,650,630,745),wrect(1065,500,1190,650),wrect(900,650,1190,745),wrect(680,375,835,490)];
+let winterSnow=null,winterLast=0;
+function buildWinter(){
+  const cx=W/2,cy=H/2,glowM=new THREE.SpriteMaterial({map:glowTex,color:0xffc56a,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.75});
+  // ice floor
+  const iceTex=canvasTex(1024,683,(g,w,h)=>{const gr=g.createLinearGradient(0,0,w,h);gr.addColorStop(0,"#7cc4ee");gr.addColorStop(.5,"#5fb3e6");gr.addColorStop(1,"#78c0ec");g.fillStyle=gr;g.fillRect(0,0,w,h);
+    g.lineCap="round";for(let i=0;i<70;i++){g.strokeStyle=`rgba(255,255,255,${.15+Math.random()*.25})`;g.lineWidth=1+Math.random()*2;const x=Math.random()*w,y=Math.random()*h,r=60+Math.random()*240,a=Math.random()*6;g.beginPath();g.arc(x,y,r,a,a+.5+Math.random());g.stroke();}
+    g.strokeStyle="rgba(255,255,255,.55)";g.lineWidth=2;for(let i=0;i<14;i++){const x=Math.random()*w,y=Math.random()*h,r=10+Math.random()*16;for(let k=0;k<6;k++){const a=k/6*Math.PI*2;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);g.stroke();}}});
+  const floor=add(new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshStandardMaterial({map:iceTex,roughness:.28,metalness:0,color:new THREE.Color("#d8eeff")})));floor.rotation.x=-Math.PI/2;floor.position.set(cx,0,cy);floor.receiveShadow=true;
+  // snowy border and cliffs falling away to a frozen valley
+  const snowM=T("#f7fbff",{roughness:.95}),cliffM=new THREE.MeshStandardMaterial({color:new THREE.Color("#7fc4ec").convertSRGBToLinear(),roughness:.2,metalness:.1,emissive:new THREE.Color("#2a7ab8").convertSRGBToLinear(),emissiveIntensity:.25});
+  const B=520,sb=add(new THREE.Mesh(new THREE.BoxGeometry(W+B*2,60,H+B*2),[snowM,snowM,snowM,snowM,snowM,snowM]),true);sb.position.set(cx,-30.5,cy);
+  const cliff=add(new THREE.Mesh(new THREE.BoxGeometry(W+B*2-20,700,H+B*2-20),cliffM));cliff.position.set(cx,-410,cy);
+  const valley=add(new THREE.Mesh(new THREE.PlaneGeometry(16000,16000),T("#dfeefa",{roughness:1})));valley.rotation.x=-Math.PI/2;valley.position.set(cx,-760,cy);
+  for(let i=0;i<60;i++){const side=i%4,u=Math.random();let x,z;if(side<2){x=cx+(u-.5)*(W+B*2);z=side?cy+H/2+B:cy-H/2-B;}else{z=cy+(u-.5)*(H+B*2);x=side===2?cx-W/2-B:cx+W/2+B;}
+    const ic=add(new THREE.Mesh(new THREE.ConeGeometry(18+Math.random()*24,90+Math.random()*160,6),cliffM));ic.rotation.x=Math.PI;ic.position.set(x,-60-Math.random()*20,z);}
+  // snow banks just outside the rink edge
+  for(let i=0;i<70;i++){const side=i%4,u=Math.random();let x,z;if(side<2){x=u*W;z=side?H+40:-40;}else{z=u*H;x=side===2?-40:W+40;}const m=add(new THREE.Mesh(new THREE.SphereGeometry(40+Math.random()*40,10,8),snowM),true);m.scale.y=.45;m.position.set(x,0,z);}
+  // fence with lamps
+  const postM=T("#8a5a32",{roughness:.85}),ironM=T("#2a2a32",{roughness:.5,metalness:.6}),lampM=new THREE.MeshStandardMaterial({color:0xffe2a0,emissive:0xffb347,emissiveIntensity:1.2});
+  const lamp=(x,z)=>{const p=add(new THREE.Mesh(new THREE.CylinderGeometry(3,4,70,8),ironM),true);p.position.set(x,35,z);const l=add(new THREE.Mesh(new THREE.BoxGeometry(14,16,14),lampM));l.position.set(x,78,z);
+    const cap=add(new THREE.Mesh(new THREE.ConeGeometry(11,8,4),ironM));cap.position.set(x,90,z);cap.rotation.y=Math.PI/4;const gl=new THREE.Sprite(glowM);gl.scale.set(70,70,1);gl.position.set(x,78,z);CG.add(gl);};
+  const fenceRun=(x1,z1,x2,z2,gapAt)=>{const L=Math.hypot(x2-x1,z2-z1),n=Math.ceil(L/120);for(let i=0;i<=n;i++){const u=i/n,x=x1+(x2-x1)*u,z=z1+(z2-z1)*u;if(gapAt&&Math.abs(u-.5)<.07)continue;
+      const po=add(new THREE.Mesh(new THREE.CylinderGeometry(3.5,3.5,34,6),postM),true);po.position.set(x,17,z);const cap=add(new THREE.Mesh(new THREE.SphereGeometry(5,8,6),snowM));cap.position.set(x,35,z);
+      if(i<n&&!(gapAt&&Math.abs(u+.5/n-.5)<.08)){const xn=x1+(x2-x1)*(i+1)/n,zn=z1+(z2-z1)*(i+1)/n;for(const h of [14,27]){const r=add(new THREE.Mesh(new THREE.BoxGeometry(L/n,3,3),postM));r.position.set((x+xn)/2,h,(z+zn)/2);r.rotation.y=-Math.atan2(zn-z,xn-x);}}
+      if(i%3===0)lamp(x+(z1===z2?0:(x1<cx?-26:26)),z+(z1===z2?(z1<cy?-26:26):0));}};
+  const o=-22;fenceRun(o,o,W-o,o,true);fenceRun(W-o,o,W-o,H-o,true);fenceRun(W-o,H-o,o,H-o,true);fenceRun(o,H-o,o,o,true);
+  // ice-block walls with snow caps
+  const brick=canvasTex(256,128,(g,w,h)=>{g.fillStyle="#4fb0ea";g.fillRect(0,0,w,h);g.strokeStyle="rgba(225,246,255,.9)";g.lineWidth=4;for(let r=0;r<2;r++){g.beginPath();g.moveTo(0,r*64);g.lineTo(w,r*64);g.stroke();for(let c=0;c<4;c++){const x=c*64+(r%2?32:0);g.beginPath();g.moveTo(x,r*64);g.lineTo(x,r*64+64);g.stroke();}}
+    const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,"rgba(255,255,255,.25)");gr.addColorStop(1,"rgba(40,120,200,.25)");g.fillStyle=gr;g.fillRect(0,0,w,h);});
+  brick.wrapS=brick.wrapT=THREE.RepeatWrapping;
+  WALLS.forEach((wl,i)=>{const w=wl[2]-wl[0],d=wl[3]-wl[1],hgt=70,tx=brick.clone();tx.needsUpdate=true;tx.repeat.set(Math.max(w,d)/140,hgt/70);
+    const side=new THREE.MeshStandardMaterial({map:tx,roughness:.2,metalness:0,emissive:new THREE.Color("#1d6fb0").convertSRGBToLinear(),emissiveIntensity:.15});
+    const m=add(new THREE.Mesh(new THREE.BoxGeometry(w,hgt,d),side),true);m.position.set((wl[0]+wl[2])/2,hgt/2,(wl[1]+wl[3])/2);
+    const cap=add(new THREE.Mesh(new THREE.BoxGeometry(w+16,22,d+16),snowM),true);cap.position.set(m.position.x,hgt+6,m.position.z);
+    for(let k=0;k<Math.max(2,Math.round((w+d)/260));k++){const bx=wl[0]+Math.random()*w,bz=wl[1]+Math.random()*d,b=add(new THREE.Mesh(new THREE.SphereGeometry(16+Math.random()*12,10,8),snowM),true);b.scale.y=.6;b.position.set(bx,hgt+16,bz);}
+    // little lamps on the block corners
+    lamp(wl[0]+10,wl[1]+10);if(w*d>60000)lamp(wl[2]-10,wl[3]-10);});
+  // snowmen, trees, cabin, sled
+  const coalM=T("#1b1b22",{roughness:.6}),carrotM=T("#ff8a2a",{roughness:.6}),scarfM=T("#e8443a",{roughness:.7}),greenM=T("#2f8a55",{roughness:.85});
+  const snowman=(x,z,s,y0)=>{s=s||1;y0=y0||0;const b1=add(new THREE.Mesh(new THREE.SphereGeometry(26*s,16,12),snowM),true);b1.position.set(x,y0+24*s,z);
+    const b2=add(new THREE.Mesh(new THREE.SphereGeometry(18*s,16,12),snowM),true);b2.position.set(x,y0+58*s,z);const hd=add(new THREE.Mesh(new THREE.SphereGeometry(13*s,16,12),snowM),true);hd.position.set(x,y0+84*s,z);
+    const hat=add(new THREE.Mesh(new THREE.CylinderGeometry(9*s,9*s,14*s,12),coalM),true);hat.position.set(x,y0+100*s,z);const br=add(new THREE.Mesh(new THREE.CylinderGeometry(14*s,14*s,2*s,14),coalM));br.position.set(x,y0+94*s,z);
+    const sc=add(new THREE.Mesh(new THREE.TorusGeometry(12*s,3.5*s,8,16),scarfM));sc.rotation.x=Math.PI/2;sc.position.set(x,y0+72*s,z);
+    const nose=add(new THREE.Mesh(new THREE.ConeGeometry(2.6*s,12*s,8),carrotM));nose.rotation.z=-Math.PI/2;nose.position.set(x+18*s,y0+84*s,z);
+    for(const sd of [-1,1]){const e=add(new THREE.Mesh(new THREE.SphereGeometry(1.8*s,6,6),coalM));e.position.set(x+11*s,y0+89*s,z+sd*5*s);}};
+  const ptree=(x,z,s)=>{s=s||1;const tr=add(new THREE.Mesh(new THREE.CylinderGeometry(5*s,7*s,24*s,8),T("#7a4e2a")),true);tr.position.set(x,12*s,z);
+    for(let k=0;k<3;k++){const c=add(new THREE.Mesh(new THREE.ConeGeometry((40-k*10)*s,(46-k*6)*s,10),greenM),true);c.position.set(x,(40+k*26)*s,z);const sn=add(new THREE.Mesh(new THREE.ConeGeometry((30-k*8)*s,(18-k*2)*s,10),snowM));sn.position.set(x,(54+k*26)*s,z);}};
+  [[-260,-260,1.4],[W+260,H+280,1.5],[W+300,-200,1.2],[-300,H+240,1.3],[W/2-500,H+330,1],[W/2+520,-330,1.1]].forEach(([x,z,sc])=>snowman(x,z,sc));
+  snowman(cx,cy,1.1,92);
+  for(let i=0;i<40;i++){const side=i%4,u=Math.random();let x,z;const d=150+Math.random()*300;if(side<2){x=u*W;z=side?H+d:-d;}else{z=u*H;x=side===2?-d:W+d;}ptree(x,z,1+Math.random()*.6);}
+  WALLS.slice(0,8).forEach((wl,i)=>{if(i%2===0)ptree(wl[0]+60,wl[1]+40,.8);});
+  {const hx=W+330,hz=-60,woodM=T("#9a6235",{roughness:.8}),roofM=snowM;const hb=add(new THREE.Mesh(new THREE.BoxGeometry(220,140,180),woodM),true);hb.position.set(hx,70,hz);
+    const rf=add(new THREE.Mesh(new THREE.CylinderGeometry(0,170,90,4,1),roofM),true);rf.position.set(hx,185,hz);rf.rotation.y=Math.PI/4;rf.scale.set(1,1,.8);
+    for(const dz of [-50,50]){const wn=add(new THREE.Mesh(new THREE.BoxGeometry(4,40,36),lampM));wn.position.set(hx-111,80,hz+dz);}}
+  {const sx=W+200,sz=H+150,red=T("#c8332b",{roughness:.5});const sl=add(new THREE.Mesh(new THREE.BoxGeometry(90,20,50),red),true);sl.position.set(sx,22,sz);
+    ["#2f6fe0","#3fae49","#ffd23a","#e8443a"].forEach((c,i)=>{const gb=add(new THREE.Mesh(new THREE.BoxGeometry(24,24,24),T(c,{roughness:.5})),true);gb.position.set(sx-30+i*20,44+(i%2)*10,sz);});}
+  // falling snow
+  const N=1600,pos=new Float32Array(N*3);for(let i=0;i<N;i++){pos[i*3]=-600+Math.random()*(W+1200);pos[i*3+1]=Math.random()*700;pos[i*3+2]=-600+Math.random()*(H+1200);}
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  winterSnow=add(new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:7,transparent:true,opacity:.85,depthWrite:false})));winterLast=0;}
+function winterTick(t){if(!winterSnow)return;const dt=winterLast?Math.min(.05,(t-winterLast)/1000):0;winterLast=t;const a=winterSnow.geometry.attributes.position,p=a.array;
+  for(let i=0;i<p.length;i+=3){p[i+1]-=60*dt;p[i]+=Math.sin(t/900+i)*12*dt;if(p[i+1]<0)p[i+1]+=700;}a.needsUpdate=true;}
 const COURSES={
   arena:{name:"バルーンアリーナ",icon:"🏟️",W:4500,H:2800,
     pillars:[{x:2250,y:1400,r:85},{x:1209,y:812,r:52},{x:3291,y:812,r:52},{x:1209,y:1988,r:52},{x:3291,y:1988,r:52},
@@ -1281,7 +1354,14 @@ const COURSES={
     dash:[{x:SU.W/2,y:SU.H/2-SU.H/2*.77,a:Math.PI},{x:SU.W/2,y:SU.H/2+SU.H/2*.77,a:0},{x:SU.W/2-SU.W/2*.77,y:SU.H/2,a:-Math.PI/2},{x:SU.W/2+SU.W/2*.77,y:SU.H/2,a:Math.PI/2}],
     spawns:[0,1,2,3,4,5,6,7].map(i=>summerPt(.77,i/8*Math.PI*2+.39)),
     testBoxes:keys=>keys.map((k,i)=>summerPt(i%2?.72:.82,.39+.16+Math.floor(i/2)*.09+(i%2)*.045)),
-    build:buildSummer,tick:t=>{if(summerWater){summerWater.offset.x=(t/60000)%1;summerWater.offset.y=(t/90000)%1;}}}
+    build:buildSummer,tick:t=>{if(summerWater){summerWater.offset.x=(t/60000)%1;summerWater.offset.y=(t/90000)%1;}}},
+  winter:{name:"ウィンターリンク",icon:"⛄",W:WR.W,H:WR.H,ice:true,
+    walls:WR_WALLS,
+    pillars:[{x:0,y:0,r:170,hidden:true},{x:WR.W,y:0,r:170,hidden:true},{x:0,y:WR.H,r:170,hidden:true},{x:WR.W,y:WR.H,r:170,hidden:true}],
+    boxes:[[1300,150],[2400,330],[3500,150],[330,1600],[4470,1600],[1150,2880],[2400,2870],[3650,2880],[1500,1200],[3300,1200],[1500,2000],[3300,2000],[2400,950],[2400,2250]],
+    dash:[{x:2400,y:150,a:0},{x:4650,y:1600,a:Math.PI/2},{x:2400,y:3050,a:Math.PI},{x:150,y:1600,a:-Math.PI/2}],
+    spawns:[[500,450],[4300,450],[500,2990],[4300,2990],[2400,560],[2400,2640],[700,1600],[4100,1600]],
+    build:buildWinter,tick:winterTick}
 };
 let loadedCourse=null;
 let miniBg=null;
