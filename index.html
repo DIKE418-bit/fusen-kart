@@ -529,7 +529,7 @@ let variant="C";
 if(!window.THREE){$("menuErr").textContent="3D表示の読み込みに失敗しました。ページを再読み込みしてください。";$("menuErr").hidden=false;return;}
 
 // ---------- constants ----------
-let W=1600,H=1000;const KS=2,R=32,PR=9,ROUND_MS=300000,CD_MS=3000,VMAX=250,VBOOST=420,OBSTACLE_FLOOR=.65;
+let W=1600,H=1000;const KS=2,R=32,PR=9,ROUND_MS=300000,CD_MS=3000,VMAX=750,VBOOST=1260,SPEEDX=3,TURN=1.75,OBSTACLE_FLOOR=.65;
 const COLORS=["#ff4f7b","#3fa9ff","#38d9b4","#ffc93c","#a66cff","#ff8a3d","#f4f4f4","#7ee35a"];
 let PILLARS=[];
 let BOXES=[];
@@ -539,9 +539,9 @@ let courseId="arena";
 // ---------- items registry: add new items here ----------
 // kind "proj": thrown/dropped object synced to everyone; fields: n (count per box), w (box weight), speed/back speed, life ms, bounce
 const ITEMS={
-  spike:{name:"バウンドキャノン",icon:"💫",n:3,w:40,hold:true,kind:"proj",speed:520,back:280,life:3800,bounce:true,hit:"pop",face:true,mesh:()=>buildCannon()},
+  spike:{name:"バウンドキャノン",icon:"💫",n:3,w:40,hold:true,kind:"proj",speed:1560,back:840,life:2600,bounce:true,hit:"pop",face:true,mesh:()=>buildCannon()},
   acorn:{name:"ポップマイン",icon:"💥",n:2,w:25,hold:true,kind:"proj",trap:true,life:20000,bounce:false,hit:"pop",boom:true,r:14,mesh:()=>buildMine()},
-  homing:{name:"ストーカーミサイル",icon:"🎯",n:1,w:12,hold:true,kind:"proj",speed:400,back:400,life:6000,bounce:true,die:true,lock:true,face:true,hit:"pop",step:(p,o,dt,t)=>homingStep(p,o,dt,t),mesh:()=>buildMissile()},
+  homing:{name:"ストーカーミサイル",icon:"🎯",n:1,w:12,hold:true,kind:"proj",speed:1200,back:1200,life:4000,bounce:true,die:true,lock:true,face:true,hit:"pop",step:(p,o,dt,t)=>homingStep(p,o,dt,t),mesh:()=>buildMissile()},
   bubble:{name:"バリバリバリア",icon:"🛡️",n:1,w:10,use:(e,t)=>{e.shield=1;e.shieldUntil=t+120000;if(e===me)flash("🛡️ バリバリバリア！（攻撃されなければ2分）",1600);}},
   ink:{name:"お邪魔インク",icon:"🖤",n:1,w:8,use:(e,t)=>{e.ik=(e.ik||0)+1;localInk(e,t);}},
   mirror:{name:"ミラーマジック",icon:"🪞",n:1,w:3,use:(e,t)=>{e.mr=(e.mr||0)+1;if(e===me&&(mode!=="test"||bots.length))flash("🪞 ミラーマジック発動！みんなのハンドルが4秒逆に！",1600);localMirror(e,t);}},
@@ -549,7 +549,7 @@ const ITEMS={
   heart:{name:"ハートバルーン",icon:"💗",n:1,w:2,use:(e,t)=>{
     if(e.b>0&&e.b<MAX_BALLOONS){e.b++;e.prevB=e.b;e.heartN=(e.heartN||0)+1;popFx(e.x,e.y,"#ff7cb0",18);if(e===me)flash("💗 ハートバルーン！風船が1個増えた（"+e.b+"/"+MAX_BALLOONS+"）",1600);}
     else if(e===me)flash("💗 風船は6個がMAX！これ以上は増えない",1600);}},
-  starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:540,back:300,life:4000,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
+  starshot:{name:"スター弾",icon:"⭐",n:3,w:0,kind:"proj",ghost:true,speed:1620,back:900,life:2800,bounce:true,hit:"pop",mesh:()=>buildStarShot()}
 };
 let mirrorFx=0;const MAX_BALLOONS=6;const MIRROR_MS=4000;
 function localMirror(src,t){if(mode==="test"&&me&&!bots.length){me.mirrorUntil=t+MIRROR_MS;flash("🪞 ミラーマジック！（テストなので自分にかかります）",1800);return;}for(const o of [me,...bots]){if(!o||o===src||ally(src,o))continue;o.mirrorUntil=t+MIRROR_MS;if(o===me){mirrorFx=t+MIRROR_MS;flash("🪞 ミラーマジック！ハンドルが左右逆に！",1800);}}}
@@ -587,7 +587,7 @@ function localInk(src,t){if(mode==="test"&&!bots.length){showInk();return;}for(c
 function nearestFoe(owner,x,y){let best=null,bd=1e9;for(const o of allEnts()){if(o.id===owner.id||o.b<=0||ally(owner,o)||(o.clone&&o.owner===owner.id))continue;const d=Math.hypot(o.x-x,o.y-y);if(d<bd){bd=d;best=o;}}return best;}
 function homingStep(p,owner,dt,t){if(t-p.t<180)return;let best=allEnts().find(o=>o.id===p.tg&&o.b>0);
   if(!best){best=nearestFoe(owner,p.x,p.y);if(best)p.tg=best.id;}
-  if(!best)return;const sp=Math.hypot(p.vx,p.vy)||360,cur=Math.atan2(p.vy,p.vx),want=Math.atan2(best.y-p.y,best.x-p.x),na=cur+clamp(angDiff(want,cur),-4.6*dt,4.6*dt);
+  if(!best)return;const sp=Math.hypot(p.vx,p.vy)||360,cur=Math.atan2(p.vy,p.vx),want=Math.atan2(best.y-p.y,best.x-p.x),na=cur+clamp(angDiff(want,cur),-7*dt,7*dt);
   p.vx=Math.cos(na)*sp;p.vy=Math.sin(na)*sp;}
 // item odds (%) by how many balloons the picker has left: fewer balloons -> stronger items
 const ITEM_ODDS={
@@ -780,23 +780,27 @@ function drive(e,steer,dHeld,dt,t,go){
   else if(go){
     e.v+=(max-e.v)*Math.min(1,dt*(boosting?4:1.6));
     const spd=clamp(e.v/VMAX,.35,1.15);
-    if(!e.drifting&&dHeld&&Math.abs(steer)>.25&&e.v>110){e.drifting=true;e.dsign=Math.sign(steer);e.driftT=0;e.hop=t;}
+    if(!e.drifting&&dHeld&&Math.abs(steer)>.25&&e.v>330){e.drifting=true;e.dsign=Math.sign(steer);e.driftT=0;e.hop=t;}
     if(e.drifting){
-      if(dHeld){e.driftT+=dt;e.a+=e.dsign*(1.55+steer*e.dsign*1.15)*spd*dt;}
+      if(dHeld){e.driftT+=dt;e.a+=e.dsign*(1.55+steer*e.dsign*1.15)*spd*TURN*dt;}
       else{const lv=driftLevel(e.driftT);e.boost=t+(lv===1?2000:lv===2?3000:4000);e.drifting=false;e.driftT=0;
 }
-    } else e.a+=steer*2.5*spd*dt;
+    } else e.a+=steer*2.5*spd*TURN*dt;
   } else e.v*=Math.pow(.1,dt);
   e.steer=steer;
-  const px=e.x,py=e.y;if(t<(e.knockUntil||0))knockMove(e,dt);else{let ma=e.a;if(loadedCourse&&loadedCourse.ice){if(e.mvA===undefined)e.mvA=e.a;e.mvA+=angDiff(e.a,e.mvA)*Math.min(1,dt*3.2);ma=e.mvA;}else e.mvA=e.a;e.x+=Math.cos(ma)*e.v*dt;e.y+=Math.sin(ma)*e.v*dt;}
+  const floorV=OBSTACLE_FLOOR*max;const slow=()=>{if(e===me&&e.v>floorV*1.05)sfx("bump",1,.35);if(e.v>floorV)e.v=Math.max(floorV,e.v*.8);};
+  if(t<(e.knockUntil||0))knockMove(e,dt);
+  // move in small steps so fast karts never tunnel through thin obstacles
+  const nSub=t<(e.knockUntil||0)?0:clamp(Math.ceil(Math.abs(e.v)*dt/18),1,10),sdt=dt/Math.max(1,nSub);
+  for(let si=0;si<nSub;si++){const px=e.x,py=e.y;let ma=e.a;if(loadedCourse&&loadedCourse.ice){if(e.mvA===undefined)e.mvA=e.a;e.mvA+=angDiff(e.a,e.mvA)*Math.min(1,sdt*3.2);ma=e.mvA;}else e.mvA=e.a;e.x+=Math.cos(ma)*e.v*sdt;e.y+=Math.sin(ma)*e.v*sdt;
   let hitSolid=false;if(SOLID&&!(loadedCourse&&loadedCourse.ghostSolid&&t<(e.ghostUntil||0))&&SOLID(e.x,e.y)){hitSolid=true;solidPush(e,px,py);}
   // obstacles: slow down, but never below 65% of max speed
-  const floorV=OBSTACLE_FLOOR*max;const slow=()=>{if(e===me&&e.v>floorV*1.05)sfx("bump",1,.35);if(e.v>floorV)e.v=Math.max(floorV,e.v*.8);};
   if(e.x<R){e.x=R;slow()}if(e.x>W-R){e.x=W-R;slow()}if(e.y<R){e.y=R;slow()}if(e.y>H-R){e.y=H-R;slow()}
   if(hitSolid)slow();
   if(!(t<(e.ghostUntil||0))){for(const p of PILLARS){const dx=e.x-p.x,dy=e.y-p.y,d=Math.hypot(dx,dy)||1;if(d<p.r+R){e.x=p.x+dx/d*(p.r+R);e.y=p.y+dy/d*(p.r+R);slow();}}
     for(const w of WALLS){if(pushOutRect(e,R,w))slow();}}
-  for(const o of allEnts()){if(o===e||o.b<=0||e.b<=0)continue;const dx=e.x-o.x,dy=e.y-o.y,d=Math.hypot(dx,dy)||1;if(d<R*2){e.x+=dx/d*(R*2-d)*.6;e.y+=dy/d*(R*2-d)*.6;e.v*=.9;}}
+  }
+  for(const o of allEnts()){if(o===e||o.b<=0||e.b<=0)continue;const dx=e.x-o.x,dy=e.y-o.y,d=Math.hypot(dx,dy)||1;if(d<R*2){e.x+=dx/d*(R*2-d)*.6;e.y+=dy/d*(R*2-d)*.6;if(!(t<(e.star||0)))e.v*=.9;}}
   if(e.b>0&&go&&loadedCourse&&loadedCourse.pads)for(const pd of loadedCourse.pads){if(Math.hypot(e.x-pd.x,e.y-pd.y)<pd.r&&e.boost<t+900)e.boost=t+1300;}
   if(e.b>0&&go)for(const dp of DASH){const dx=e.x-dp.x,dy=e.y-dp.y,c=Math.cos(-dp.a),s=Math.sin(-dp.a),lx=dx*c-dy*s,ly=dx*s+dy*c;
     if(Math.abs(lx)<42&&Math.abs(ly)<26&&e.boost<t+900){e.boost=t+1100;}}
@@ -834,9 +838,9 @@ function stepProj(e,dt,t){
   e.pj=e.pj.filter(p=>!p.dead&&t-p.t<((ITEMS[p.k]||ITEMS.spike).life)&&!ents.some(o=>o.h.some(h=>h[0]===e.id&&h[1]===p.id)));
 }
 function resolveRam(L,t){
-  if(L.b<=0||t<=L.inv||t<(L.star||0))return;
+  if(L.b<=0||t<(L.star||0)||t<L.jump)return;L.ramCd=L.ramCd||{};
   for(const E of allEnts()){if(E===L||E.b<=0||ally(E,L))continue;const on=E.local?t<(E.star||0):E.starFlag;if(!on)continue;
-    if(Math.hypot(E.x-L.x,E.y-L.y)<R*2+6){
+    if(t>=(L.ramCd[E.id]||0)&&Math.hypot(E.x-L.x,E.y-L.y)<R*2+(E.local?28:70)){L.ramCd[E.id]=t+900;
       if(woolBlock(L,t))return;
       if(L.shield){L.shield=0;L.inv=t+800;barriFx(L.x,L.y);if(L===me)flash("⚡ BARI！バリアで防いだ！");return;}
       L.ramN=(L.ramN||0)+1;L.h.push([E.id,900000+L.ramN,L.clone?0:1]);if(L.h.length>8)L.h.shift();L.b--;L.inv=t+1600;L.spin=t+800;L.v*=.2;L.boost=0;L.drifting=false;popFx(L.x,L.y,"#ffe066",20);
@@ -902,17 +906,17 @@ function botThink(b,t,dt){
   if(cbox){gx=cbox.x;gy=cbox.y;}
   else if(b.clone){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){for(let k=0;k<20;k++){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];if(!solidAt(b.wp[0],b.wp[1]))break;}b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
   else if(!b.item){let bd=1e9;for(const bx of BOXES)if(bx.on){const d=Math.hypot(bx.x-b.x,bx.y-b.y);if(d<bd){bd=d;gx=bx.x;gy=bx.y;}}}
-  else if(tgt){const lead=td/540*L.lead;gx=tgt.x+Math.cos(tgt.a)*tgt.v*lead;gy=tgt.y+Math.sin(tgt.a)*tgt.v*lead;}
+  else if(tgt){const lead=td/1560*L.lead;gx=tgt.x+Math.cos(tgt.a)*tgt.v*lead;gy=tgt.y+Math.sin(tgt.a)*tgt.v*lead;}
   let dx=gx-b.x,dy=gy-b.y;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
-  for(const p of PILLARS){const px=p.x-b.x,py=p.y-b.y,d=Math.hypot(px,py);if(d<p.r+95){const side=(px*dy-py*dx)>0?-1:1;dx+=-py/d*side*1.4;dy+=px/d*side*1.4;}}
+  for(const p of PILLARS){const px=p.x-b.x,py=p.y-b.y,d=Math.hypot(px,py);if(d<p.r+170){const side=(px*dy-py*dx)>0?-1:1;dx+=-py/d*side*1.4;dy+=px/d*side*1.4;}}
   {const pr={x:b.x+Math.cos(b.a)*85,y:b.y+Math.sin(b.a)*85};for(const w of WALLS){const n=pushOutRect(pr,30,w);if(n){const side=(n[0]*dy-n[1]*dx)>0?1:-1;dx+=n[0]*1.6-n[1]*side*1.2;dy+=n[1]*1.6+n[0]*side*1.2;}}}
   if(SOLID){const da=Math.atan2(dy,dx);for(const off of [0,.35,-.35,.7,-.7,1.05,-1.05,1.45,-1.45,1.9,-1.9,2.5,-2.5]){const a=da+off;
-      if(!SOLID(b.x+Math.cos(a)*90,b.y+Math.sin(a)*90)&&!SOLID(b.x+Math.cos(a)*170,b.y+Math.sin(a)*170)){if(off){dx=Math.cos(a);dy=Math.sin(a);}break;}}}
+      if(!SOLID(b.x+Math.cos(a)*140,b.y+Math.sin(a)*140)&&!SOLID(b.x+Math.cos(a)*300,b.y+Math.sin(a)*300)){if(off){dx=Math.cos(a);dy=Math.sin(a);}break;}}}
   const ex=b.x+Math.cos(b.a)*70,ey=b.y+Math.sin(b.a)*70;if(ex<60||ex>W-60||ey<60||ey>H-60){dx+=(W/2-b.x)/(W/2);dy+=(H/2-b.y)/(H/2);}
   b.fireCd-=dt;
   if(tgt&&b.item&&b.fireCd<=0&&t>(b.inkUntil||0)){const k=b.item.k,want=Math.atan2(tgt.y-b.y,tgt.x-b.x),df=Math.abs(angDiff(want,b.a));
-    if(k==="spike"||k==="starshot"){if(td<560*L.range&&df<L.tol&&losClear(b.x,b.y,tgt.x,tgt.y)){useItem(b,t,false);b.fireCd=(1+Math.random()*1.5)*L.cd;}else if(td<200&&df>2.7){useItem(b,t,true);b.fireCd=1.5*L.cd;}}
-    else if(k==="homing"){if(td<700*L.range&&losClear(b.x,b.y,tgt.x,tgt.y)){useItem(b,t,false);b.fireCd=1.5*L.cd;}}
+    if(k==="spike"||k==="starshot"){if(td<900*L.range&&df<L.tol&&losClear(b.x,b.y,tgt.x,tgt.y)){useItem(b,t,false);b.fireCd=(1+Math.random()*1.5)*L.cd;}else if(td<200&&df>2.7){useItem(b,t,true);b.fireCd=1.5*L.cd;}}
+    else if(k==="homing"){if(td<1100*L.range&&losClear(b.x,b.y,tgt.x,tgt.y)){useItem(b,t,false);b.fireCd=1.5*L.cd;}}
     else if(k==="acorn"){if((td<260*L.range&&df>2.2)||Math.random()<dt*.25){useItem(b,t,true);b.fireCd=1.2*L.cd;}}
     else if(k==="magnet"){if(td<320){useItem(b,t,false);b.fireCd=2;}}
     else if(k==="spring"){let danger=false;for(const o of allEnts()){if(o===b)continue;for(const p of o.pj){if((ITEMS[p.k]||{}).hit==="pop"&&Math.hypot(p.x-b.x,p.y-b.y)<130)danger=true;}}if(danger||Math.random()<dt*.15){useItem(b,t,false);b.fireCd=1;}}
@@ -2414,7 +2418,7 @@ function frame(){
     for(const b of bots){const [s,d]=go?botThink(b,t,dt):[0,false];drive(b,s,d,dt,t,go);}
     stepClones(t,dt,go);
     for(const b of bots)if(t<b.boost)b.inkUntil=0;
-    for(const e of [me,...bots])stepProj(e,dt,t);
+    {const nP=clamp(Math.ceil(1800*dt/26),1,5),pdt=dt/nP;for(let k=0;k<nP;k++){for(const e of [me,...bots])stepProj(e,pdt,t);if(go&&k<nP-1)for(const e of [me,...bots,...clones])resolveHits(e,t);}}
     if(go)for(const e of [me,...bots])resolveSquirrelSteal(e,t);
     if(go)for(const e of [me,...bots,...clones]){resolveHits(e,t);resolveIce(e,t);if(!e.clone)bearWatch(e,t);resolveRam(e,t);resolveMagnet(e,t);gainSteals(e);if(e.shield&&t>e.shieldUntil)e.shield=0;}
     for(const e of [...remotes.values(),...remoteBots.values()])for(const p of e.pj){p.x+=p.vx*dt;p.y+=p.vy*dt;}
@@ -2482,7 +2486,7 @@ function frame(){
     const dist=dead?320:215,hgt=dead?280:170;
     tmpV.set(me.rx-fx*dist,hgt,me.ry-fz*dist);tmpL.set(me.rx+fx*95,0,me.ry+fz*95);
     if(!camInit){camPos.copy(tmpV);camLook.copy(tmpL);camInit=true;}
-    camPos.lerp(tmpV,Math.min(1,dt*6.5));camLook.lerp(tmpL,Math.min(1,dt*9));
+    camPos.lerp(tmpV,Math.min(1,dt*11));camLook.lerp(tmpL,Math.min(1,dt*14));
     camera.position.copy(camPos);camera.lookAt(camLook);
     camRoll+=(((me.drifting?-me.dsign*.05:0)-me.steer*.025)-camRoll)*Math.min(1,dt*5);camera.rotateZ(camRoll);
     const boosting=t<me.boost||t<(me.dashUntil||0)||t<(me.star||0);const tgtFov=baseFov()+(boosting?12:0);camera.fov+=(tgtFov-camera.fov)*Math.min(1,dt*5);camera.updateProjectionMatrix();
