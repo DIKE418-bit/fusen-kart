@@ -88,7 +88,7 @@ body{background:var(--night);color:var(--panel);font-family:var(--body);overflow
   box-shadow:0 5px 0 rgba(0,0,0,.25),0 0 0 4px rgba(255,255,255,.85),0 10px 24px rgba(0,0,0,.35);touch-action:manipulation;transition:transform .08s}
 .mBtn:active{transform:translateY(3px) scale(.98)}
 .mBtn b{font-size:1.7em;line-height:1}.mBtn small{display:block;font-family:var(--body);font-weight:700;font-size:.62em;opacity:.92;margin-top:2px}
-.mBtn.on{background:linear-gradient(180deg,#ff7aa8,#ff3f7f)}.mBtn.so{background:linear-gradient(180deg,#5fb0ff,#2f6fe0)}.mBtn.te{background:linear-gradient(180deg,#7ee35a,#2f9a3a)}
+.mBtn.on{background:linear-gradient(180deg,#ff7aa8,#ff3f7f)}.mBtn.so{background:linear-gradient(180deg,#5fb0ff,#2f6fe0)}.mBtn.te{background:linear-gradient(180deg,#7ee35a,#2f9a3a)}.mBtn.mu{background:linear-gradient(180deg,#ffb347,#e8442a)}
 .mBack{position:relative;border:0;background:rgba(27,22,64,.6);color:#fff;font:700 .9rem var(--body);padding:8px 18px;border-radius:999px;cursor:pointer}
 @media (orientation:landscape) and (max-height:500px){.mList{flex-direction:row;width:min(900px,96vw)}.mBtn{flex:1;flex-direction:column;text-align:center;gap:6px;padding:12px 10px}}
 .wizTop{display:flex;align-items:center;gap:8px}.wizTop h2{flex:1;margin:0;text-align:center;font-family:"Mochiy Pop One",var(--display);font-size:1.25rem;color:var(--pop)}
@@ -192,6 +192,8 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 .backtip{grid-column:2;grid-row:3;font-family:var(--body);font-weight:900;font-size:.68rem;text-align:center;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .hint{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);left:max(16px,env(safe-area-inset-left,0px));max-width:46%;font-weight:900;font-size:.85rem;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.7);line-height:1.5}
 #slot,#myb,#face{display:none!important}
+#hpBar{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 44px);width:min(46vw,320px);height:20px;border-radius:999px;background:rgba(27,22,64,.6);border:2px solid #fff;overflow:hidden;z-index:4}
+#hpFill{position:absolute;inset:0;width:100%;background:linear-gradient(90deg,#ff4f7b,#ffb347);transition:width .15s}#hpTxt{position:relative;display:block;text-align:center;color:#fff;font:900 .78rem/16px var(--body);text-shadow:0 1px 2px #000}
 #spd{grid-column:1;grid-row:3;font-family:var(--body);font-weight:900;font-size:.72rem;text-align:center;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);font-variant-numeric:tabular-nums}
 #itemBtn small{font-family:var(--body);font-weight:900;font-size:.68rem;line-height:1.15;max-width:92px;text-align:center}
 #itemBtn i{font-style:normal;font-family:var(--body);font-weight:900;font-size:.8rem}
@@ -245,6 +247,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
   <div class="slot empty" id="slot"><b id="slotIc">・</b><small id="slotN"></small></div>
   <div class="face" id="face" hidden><img id="faceImg" alt="ワンちゃんの表情"></div>
   <div id="myb">🎈🎈🎈</div>
+  <div id="hpBar" hidden><i id="hpFill"></i><b id="hpTxt">HP 100</b></div>
   <div id="rotate">📱↻ スマホを横向きにすると遊びやすいです</div>
   <div class="hint" id="hint">左側を左右にスライドでハンドル<br>ドリフトを押しながら曲がる</div>
   <div class="pad">
@@ -269,6 +272,7 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
   <div class="mList">
     <button class="mBtn on" type="button" data-mode="online"><b>👥</b><span>合言葉で入る<small>友だちと対戦（CPUも入れられる）</small></span></button>
     <button class="mBtn so" type="button" data-mode="solo"><b>🤖</b><span>ひとりでCPUと対戦<small>CPUの人数と強さを選べる</small></span></button>
+    <button class="mBtn mu" type="button" data-mode="musou"><b>⚔️</b><span>無双プレイ<small>HP100でCPU最大100体をなぎ倒せ</small></span></button>
     <button class="mBtn te" type="button" data-mode="test"><b>🧪</b><span>走行テスト<small>アイテムやSPECを自由に試せる</small></span></button>
   </div>
   <button class="mBack" id="mBack" type="button">← タイトルへ</button>
@@ -303,12 +307,15 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div class="field"><label>チームバトル（CPU練習用）</label><div class="courses" id="soloTm"></div></div>
     <div class="field"><label>走行テストのCPUの人数</label><div class="courses" id="testCpu"></div></div>
     <div class="field"><label>走行テストのCPUの強さ</label><div class="courses" id="testLv"></div></div>
+    <div class="field"><label>CPUの数</label><div class="courses" id="musouNum"></div></div>
+    <div class="field"><label>CPUの強さ</label><div class="courses" id="musouLv"></div></div>
     <div class="field"><label>風船の色</label><div class="colors" id="colors"></div></div>
     <div class="field"><label for="passIn">合言葉</label><input id="passIn" maxlength="24" placeholder="例：たこやき" autocomplete="off"></div>
     <button class="btn" id="joinBtn" type="button">合言葉でルームに入る</button>
     <div class="err" id="menuErr" hidden></div>
     <button class="btn dogC" id="cBtn" type="button">ひとりで走行テスト（敵なし）</button>
     <button class="btn alt" id="soloBtn" type="button">ひとりでCPUと練習</button>
+    <button class="btn" id="musouBtn" type="button" hidden>無双スタート！</button>
     <div class="wizNav" id="wizNav"><button class="btn ghost" id="wizBack" type="button">← もどる</button><button class="btn" id="wizNext" type="button">つぎへ →</button></div>
     <dl class="ctl" id="ctlHelp">
       <dt>アクセル</dt><dd>自動</dd>
@@ -596,7 +603,7 @@ const ITEM_ODDS={
   3:{spike:24,acorn:23,homing:15,bubble:10,ink:10,mirror:10,star:5,heart:3},
   2:{spike:22,acorn:22,homing:20,bubble:10,ink:5,mirror:5,star:10,heart:6},
   1:{spike:21,acorn:20,homing:25,bubble:10,ink:0,mirror:0,star:15,heart:9}};
-function rollItem(e){const odds=ITEM_ODDS[clamp((e&&e.b)||3,1,4)];let tot=0;for(const k in odds)tot+=odds[k];let r=Math.random()*tot;
+function rollItem(e){let odds=ITEM_ODDS[clamp((e&&e.b)||3,1,4)];if(musou&&e&&e.bot)odds=Object.assign({},odds,{ink:0,mirror:0});let tot=0;for(const k in odds)tot+=odds[k];let r=Math.random()*tot;
   for(const k in odds){r-=odds[k];if(r<0&&odds[k]>0)return{k,n:ITEMS[k].n||1};}return{k:"spike",n:ITEMS.spike.n};}
 const CPU_NAMES=["ポン太","ミルク","ガブ","モモ","コタロウ","ルナ"];
 const DRIFT_COL=["#ffffff","#4fc3ff","#ff9a2e","#c45cff"];
@@ -655,7 +662,7 @@ const SPECS={
   kangaroo:{name:"袋隠し",icon:"👜",dur:40000,desc:"40秒間、アイテムボックスが自分にしか見えず自分しか取れない"},
   sheep:{name:"ムートンドリーム",icon:"🐑",desc:"風船を最大の6個まで一気に補充する（残り1個なら+5、5個なら+1）"},
   goat:{name:"デーモンナイトメア",icon:"😈",desc:"自分の風船を1つ生贄にして、ほかのプレイヤー全員の風船を1つずつ割る（風船2個以上で使える・バリアでも防げない）"}};
-const ROAR_CD=450,ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.5,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=3600,KNOCK_MS=1400;
+const ROAR_CD=450,ICE_R=360,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.5,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=3600,KNOCK_MS=1400;
 let clones=[],remoteClones=new Map(),remoteBots=new Map();
 // teams: teamOn 0=none 1=mixed red/blue 2=humans vs CPU; teamMap id->0/1 (decided by whoever started the round)
 const TEAM_COL=["#ff4f7b","#3fa9ff"],TEAM_NAME=["🔴 赤チーム","🔵 青チーム"];
@@ -664,7 +671,7 @@ function teamOf(e){if(!teamOn||!e)return -1;const v=teamMap.get(e.clone?e.owner:
 function ally(a,b){if(!teamOn||!a||!b)return false;const x=teamOf(a);return x>=0&&x===teamOf(b);}
 function buildTeams(humans,botIds,m){const mp=new Map();if(m===2){humans.forEach(id=>mp.set(id,0));botIds.forEach(id=>mp.set(id,1));}
   else if(m===1)[...humans,...botIds].forEach((id,i)=>mp.set(id,i%2));return mp;}
-function applyTeamColors(){if(!teamOn)return;for(const o of [me,...bots]){if(!o)continue;const k=teamOf(o);if(k>=0)o.color=TEAM_COL[k];}}
+function applyTeamColors(){if(!teamOn)return;for(const o of [me,...bots]){if(!o)continue;if(musou&&o===me)continue;const k=teamOf(o);if(k>=0)o.color=TEAM_COL[k];}}
 const on_=(E,f,flag,t)=>E.local?t<(E[f]||0):!!E[flag];
 const growlOn=(E,t)=>on_(E,"growlUntil","growlFlag",t);
 // dog "威嚇": everyone except the dog (its team and its own clones) drives at half speed
@@ -707,9 +714,9 @@ function canSpec(e,t){const S=SPECS[e.skin];if(!S||e.clone||e.b<=0||phase!=="pla
   if(e.spUsed)return false;
   if(e.skin==="bear"&&e.b<2)return false;
   if(e.skin==="goat"&&e.b<2)return false;
-  if(e.skin==="sheep"&&e.b>=MAX_BALLOONS)return false;
+  if(e.skin==="sheep"&&e.b>=(musou&&e===me?MUSOU_HP:MAX_BALLOONS))return false;
   return true;}
-function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e===me;
+function useSpec(e,t){if(!canSpec(e,t))return false;if(musou&&e.bot&&(e.skin==="rabbit"||e.skin==="dog"||e.skin==="kangaroo"))return false;const S=SPECS[e.skin],mine=e===me;
   if(e.bearRage>t){e.bearCd=t+RAGE_CD;return launch(e,"homing",t,false);}
   if(e.skin==="lion"&&t<(e.roarUntil||0)){e.roarCd=t+ROAR_CD;launch(e,"roar",t,false);if(e===me)sfx("missile");return true;}
   switch(e.skin){
@@ -721,7 +728,7 @@ function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e
     case"squirrel":e.dashUntil=t+S.dur;if(mine)flash("⚡ 電光石火！",1300);break;
     case"lion":e.roarUntil=t+S.dur;e.roarCd=t+ROAR_CD;launch(e,"roar",t,false);if(mine)flash("🦁 王者の咆哮！40秒間ビーム撃ち放題！",1500);break;
     case"goat":demonNightmare(e,t);break;
-    case"sheep":{const add=MAX_BALLOONS-e.b;e.b=MAX_BALLOONS;e.prevB=e.b;e.bearPrevB=e.b;popFx(e.x,e.y,"#ffffff",40);if(mine)flash("🐑 ムートンドリーム！風船が"+add+"個ふえて6個に！",1800);break;}
+    case"sheep":{const cap=musou&&e===me?Math.min(MUSOU_HP,e.b+30):MAX_BALLOONS,add=cap-e.b;e.b=cap;e.prevB=e.b;e.bearPrevB=e.b;popFx(e.x,e.y,"#ffffff",40);if(mine)flash("🐑 ムートンドリーム！風船が"+add+"個ふえて6個に！",1800);break;}
     case"kangaroo":e.pouchUntil=t+S.dur;if(mine)flash("👜 袋隠し！40秒間アイテムはあなただけのもの",1800);break;}
   e.spUsed=true;e.spDoneAt=t+Math.min(S.dur||0,10000)+1500;return true;}
 function spawnClones(o,t){for(let i=0;i<3;i++){const c=makeEnt(o.id+"#c"+i,o.name,o.color,true,true);c.skin=o.skin;c.clone=true;c.owner=o.id;c.cloneUntil=t+CLONE_MS;
@@ -897,7 +904,8 @@ const CPU_LV={1:{name:"よわい",spd:.76,wob:.6,gain:1.3,tol:.45,cd:3,lead:0,sp
   5:{name:"鬼",spd:1.12,wob:.02,gain:3,tol:.09,cd:.45,lead:1.2,spec:2.5,range:1.3}};
 let cpuLevel=3,cpuCount=3;try{const v=+localStorage.getItem("fk-cn");if(v>=1&&v<=6)cpuCount=v;}catch(e){}
 try{const v=+localStorage.getItem("fk-lv");if(CPU_LV[v])cpuLevel=v;}catch(e){}
-let onlineCpu=0,onlineLv=3,onlineTeam=0,soloTeam=0,testCpu=0,testLv=3;
+let onlineCpu=0,onlineLv=3,onlineTeam=0,soloTeam=0,testCpu=0,testLv=3,musouNum=30,musouLv=2,musou=false;
+try{let v=+localStorage.getItem("fk-mun");if(v>=10&&v<=100)musouNum=v;v=+localStorage.getItem("fk-mulv");if(CPU_LV[v])musouLv=v;}catch(e){}
 try{const g=k=>localStorage.getItem(k);let v=g("fk-ocn");if(v!==null&&+v>=0&&+v<=6)onlineCpu=+v;v=+g("fk-olv");if(CPU_LV[v])onlineLv=v;v=+g("fk-otm");if(v===1||v===2)onlineTeam=v;v=+g("fk-stm");if(v===1)soloTeam=1;v=g("fk-tcn");if(v!==null&&+v>=0&&+v<=6)testCpu=+v;v=+g("fk-tlv");if(CPU_LV[v])testLv=v;}catch(e){}
 function botThink(b,t,dt){
   if(b.b<=0)return[0,false];const L=CPU_LV[b.lv||3];
@@ -1112,8 +1120,9 @@ function renderLobby(){
 
 // ---------- rounds ----------
 function makeBots(n,lv,prefix){const pal=COLORS.filter(c=>c!==myColor),others=Object.keys(CHARS).filter(k=>k!==myChar);
-  return CPU_NAMES.slice(0,n).map((nm,i)=>{const b=makeEnt(prefix+i,nm,pal[(i*2)%pal.length],true,true);b.skin=others[i%others.length];b.lv=lv;return b;});}
-function beginRound(r,co,host){lastCdBeep=-1;
+  const names=Array.from({length:n},(_,i)=>CPU_NAMES[i]||("CPU"+(i+1)));
+  return names.map((nm,i)=>{const b=makeEnt(prefix+i,nm,pal[(i*2)%pal.length],true,true);b.skin=others[i%others.length];b.lv=lv;return b;});}
+function beginRound(r,co,host){lastCdBeep=-1;if(mode!=="solo")musou=false;
   courseId=COURSES[co]?co:(COURSES[courseId]?courseId:"arena");loadCourse(courseId);
   round=r;phase="cd";phaseAt=now();show(null);$("hint").hidden=false;
   $("face").hidden=true;
@@ -1124,18 +1133,26 @@ function beginRound(r,co,host){lastCdBeep=-1;
     if(host){bots=makeBots(onlineCpu,onlineLv,me.id+"~cpu");bots.forEach((b,i)=>spawn(b,ids.length+i));
       teamOn=(onlineTeam===2&&!bots.length)?1:onlineTeam;teamMap=buildTeams(ids,bots.map(b=>b.id),teamOn);}
     else{bots=[];teamOn=0;teamMap=new Map();}}
-  else{spawn(me,0);bots.forEach((b,i)=>spawn(b,i+1));teamOn=mode==="solo"?soloTeam:0;teamMap=buildTeams([me.id],bots.map(b=>b.id),teamOn);}
-  applyTeamColors();if(teamOn&&teamOf(me)>=0)flash("あなたは "+TEAM_NAME[teamOf(me)]+"！",2200);
+  else{spawn(me,0);bots.forEach((b,i)=>spawn(b,i+1));teamOn=mode==="solo"?(musou?2:soloTeam):0;teamMap=buildTeams([me.id],bots.map(b=>b.id),teamOn);
+    if(musou){me.b=me.prevB=MUSOU_HP;musouSpawn();}}
+  applyTeamColors();if(musou)flash("⚔️ 無双プレイ！CPU "+bots.length+"体をなぎ倒せ！",2400);else if(teamOn&&teamOf(me)>=0)flash("あなたは "+TEAM_NAME[teamOf(me)]+"！",2200);
   camInit=false;pushPresence();
 }
+const MUSOU_HP=100;
+function startMusou(){savePrefs();mode="solo";musou=true;leaveOnline();
+  me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;bots=makeBots(musouNum,musouLv,"cpu");round=1;beginRound(1,pickedCourse);}
+// scatter many CPUs over free ground, away from the player
+function musouSpawn(){for(const b of bots){for(let k=0;k<60;k++){const x=150+Math.random()*(W-300),y=150+Math.random()*(H-300);
+    if(solidAt(x,y)||PILLARS.some(q=>Math.hypot(x-q.x,y-q.y)<q.r+R+10)||WALLS.some(w=>x>w[0]-R&&x<w[2]+R&&y>w[1]-R&&y<w[3]+R)||Math.hypot(x-me.x,y-me.y)<900)continue;
+    b.x=b.rx=x;b.y=b.ry=y;b.a=b.ra=Math.atan2(me.y-y,me.x-x);break;}}}
 function startSolo(){
-  savePrefs();mode="solo";leaveOnline();
+  savePrefs();mode="solo";musou=false;leaveOnline();
   me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;
   bots=makeBots(cpuCount,cpuLevel,"cpu");
   round=1;beginRound(1,pickedCourse);
 }
 function startTest(v){
-  savePrefs();mode="test";variant=v||null;leaveOnline();
+  savePrefs();mode="test";musou=false;variant=v||null;leaveOnline();
   me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;bots=makeBots(testCpu,testLv,"cpu");
   round=1;beginRound(1,pickedCourse);
 }
@@ -1163,6 +1180,8 @@ function finish(){sfx("whistle");setTimeout(()=>sfx(me&&me.b>0&&(roundEnts().fil
     $("resTitle").textContent=w<0?"引き分け！":TEAM_NAME[w]+"の勝ち！"+(teamOf(me)===w?"🎉":"");
     rows.sort((a,b)=>(teamOf(a.e)-teamOf(b.e))||(b.e.b-a.e.b)||(b.s-a.s));}
   else $("resTitle").textContent=rows[0]&&rows[0].e===me?"優勝！":(me.b>0?"タイムアップ":"脱落…");
+  if(musou){const ko=bots.filter(b=>b.b<=0).length;$("resTitle").textContent=me.b>0&&ko===bots.length?"無双達成！🎉":me.b>0?"タイムアップ":"力つきた…";
+    $("resList").innerHTML=`<li><span class="rk">⚔️</span><span>撃破 ${ko} / ${bots.length} 体</span><span class="pts">❤️${Math.max(0,me.b)}　${scoreOf(me.id)}pt</span></li>`;setTimeout(()=>{if(phase==="over")show("result");},1200);return;}
   $("resList").innerHTML=rows.map((r,i)=>`<li><span class="rk">${i+1}</span><span class="dot" style="background:${r.e.color}"></span><span>${esc(r.e.name)}${r.e===me?"（あなた）":""}</span><span class="pts">🎈${r.e.b}　${r.s}pt</span></li>`).join("");
   setTimeout(()=>{if(phase==="over")show("result");},1200);
 }
@@ -1173,7 +1192,8 @@ $("joinBtn").onclick=joinOnline;$("soloBtn").onclick=startSolo;$("cBtn").onclick
 $("splash").onclick=()=>{$("splash").hidden=true;startTest("C");};
 $("startBtn").onclick=()=>{let mx=round;for(const e of remotes.values())mx=Math.max(mx,e.r||0);beginRound(mx+1,pickedCourse,true);};
 $("leaveBtn").onclick=toMenu;$("toMenuBtn").onclick=toMenu;$("timer").addEventListener("click",()=>{if(mode==="test")toMenu();});
-$("againBtn").onclick=()=>{if(mode==="solo")startSolo();else toLobby();};
+$("againBtn").onclick=()=>{if(mode==="solo"){if(musou)startMusou();else startSolo();}else toLobby();};
+$("musouBtn").addEventListener("click",goFull);$("musouBtn").onclick=startMusou;
 
 let flashTxt="",flashUntil=0;function flash(t,ms){flashTxt=t;flashUntil=now()+(ms||1100);}
 
@@ -2442,7 +2462,9 @@ function frame(){
 
   // karts
   const ents=playing?roundEnts():[];const seen=new Set();
+  let nearSet=null;if(ents.length>16&&me){nearSet=new Set(ents.filter(e=>e.b>0||e===me).sort((a,b)=>Math.hypot(a.rx-me.rx,a.ry-me.ry)-Math.hypot(b.rx-me.rx,b.ry-me.ry)).slice(0,14));nearSet.add(me);}
   for(const e of ents){let o=kartObjs.get(e);
+    if(nearSet&&!nearSet.has(e)){if(o){o.root.visible=false;seen.add(e);}continue;}if(o)o.root.visible=true;
     if(!o||o.color!==e.color||o.name!==e.name||o.skin!==e.skin){if(o)disposeObj(o);o=buildKart(e,e===me);kartObjs.set(e,o);}
     seen.add(e);
     {const ja=e.local?(t<e.jump?(t-e.jumpAt)/1150:-1):(e.jpFlag?Math.min(1,(t-(e.jumpAtLocal||t))/1150):-1);o.root.position.set(e.rx,ja>=0?Math.sin(ja*Math.PI)*46:0,e.ry);}
@@ -2499,7 +2521,8 @@ function frame(){
     const boosting=t<me.boost||t<(me.dashUntil||0)||t<(me.star||0);const tgtFov=baseFov()+(boosting?12:0);camera.fov+=(tgtFov-camera.fov)*Math.min(1,dt*5);camera.updateProjectionMatrix();
     $("speed").classList.toggle("on",boosting&&phase==="play");
     drawMini(ents);
-    $("myb").textContent=me.b>0?"🎈".repeat(me.b):"💥";$("spd").textContent=Math.round(Math.max(0,me.v)*.4)+" km/h";$("mys").hidden=mode==="test";if(mode==="test"){$("timer").textContent="走行テスト ✕";$("timer").classList.add("exit");}
+    $("myb").textContent=me.b>0?"🎈".repeat(Math.min(6,me.b)):"💥";
+    {const hb=$("hpBar");hb.hidden=!musou;if(musou){const hp=Math.max(0,me.b);$("hpFill").style.width=hp+"%";const left=bots.filter(b=>b.b>0).length;$("hpTxt").textContent="❤️ HP "+hp+" / "+MUSOU_HP+"　のこり "+left+" 体";}}$("spd").textContent=Math.round(Math.max(0,me.v)*.4)+" km/h";$("mys").hidden=mode==="test";if(mode==="test"){$("timer").textContent="走行テスト ✕";$("timer").classList.add("exit");}
     else{$("timer").classList.remove("exit");$("mys").textContent=scoreOf(me.id)+"pt";
     const rem=phase==="play"?Math.max(0,endAt-t):ROUND_MS,s=Math.ceil(rem/1000);$("timer").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
     const it=me.item,ic=!it?"・":(ITEMS[it.k]?ITEMS[it.k].icon:"・");
@@ -2541,6 +2564,8 @@ pickRow("oCpuNum",[0,1,2,3,4,5,6].map(i=>[i,i+"人"]),onlineCpu,"fk-ocn",v=>onli
 pickRow("oCpuLv",[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name]),onlineLv,"fk-olv",v=>onlineLv=v);
 pickRow("oTeam",[[0,"個人戦"],[1,"チーム戦（赤vs青）"],[2,"みんな vs CPU"]],onlineTeam,"fk-otm",v=>onlineTeam=v);
 pickRow("testCpu",[0,1,2,3,4,5,6].map(i=>[i,i?i+"人":"なし"]),testCpu,"fk-tcn",v=>testCpu=v);
+pickRow("musouNum",[10,20,30,50,70,100].map(i=>[i,i+"体"]),musouNum,"fk-mun",v=>musouNum=v);
+pickRow("musouLv",[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name]),musouLv,"fk-mulv",v=>musouLv=v);
 pickRow("testLv",[1,2,3,4,5].map(i=>[i,"Lv"+i+" "+CPU_LV[i].name]),testLv,"fk-tlv",v=>testLv=v);
 pickRow("soloTm",[[0,"なし（個人戦）"],[1,"あり（赤vs青）"]],soloTeam,"fk-stm",v=>soloTeam=v);
 {const b=$("sndBtn");const paint=()=>{b.textContent=SND.muted?"🔇":"🔊";};paint();b.addEventListener("click",e=>{e.stopPropagation();SND.init();SND.setMuted(!SND.muted);paint();if(!SND.muted)sfx("click");});}
@@ -2555,15 +2580,15 @@ show("title");loadCourse(pickedCourse);showSpecNote();
   const PARTS={chara:[F("nameIn"),F("chars"),F("colors")],course:[F("courses")]};
   F("chars").after(F("colors"));F("courses").insertBefore(Object.assign(document.createElement("div"),{id:"coursePrev",innerHTML:'<img alt=""><b id="cpvName"></b>'}),$("courses"));F("chars").insertBefore(Object.assign(document.createElement("div"),{id:"charPrev",innerHTML:'<img alt=""><div><b id="cpName"></b><span id="cpSpec"></span></div>'}),$("chars"));
   // CPU + balloon colour screen: one set of fields per mode
-  const CPU={online:[F("oCpuNum"),F("oCpuLv"),F("oTeam")],solo:[F("cpuNum"),F("cpuLv"),F("soloTm")],test:[F("testCpu"),F("testLv")]};
-  const relabel={oCpuNum:"CPUの人数",oCpuLv:"CPUの強さ",oTeam:"バトル形式",cpuNum:"CPUの人数",cpuLv:"CPUの強さ",soloTm:"チームバトル",testCpu:"CPUの人数",testLv:"CPUの強さ"};
+  const CPU={online:[F("oCpuNum"),F("oCpuLv"),F("oTeam")],solo:[F("cpuNum"),F("cpuLv"),F("soloTm")],test:[F("testCpu"),F("testLv")],musou:[F("musouNum"),F("musouLv")]};
+  const relabel={musouNum:"CPUの数",musouLv:"CPUの強さ",oCpuNum:"CPUの人数",oCpuLv:"CPUの強さ",oTeam:"バトル形式",cpuNum:"CPUの人数",cpuLv:"CPUの強さ",soloTm:"チームバトル",testCpu:"CPUの人数",testLv:"CPUの強さ"};
   for(const k in relabel){const l=F(k).querySelector("label");if(l)l.textContent=relabel[k];}
   for(const m in CPU)for(const el of CPU[m])$("cpuSlot").appendChild(el);
   const showCpu=()=>{for(const m in CPU)for(const el of CPU[m])el.hidden=m!==wm;$("cpuScr").scrollTop=0;show("cpuScr");};
   $("passSlot").appendChild(F("passIn"));
   const TITLE={chara:"キャラクター",course:"コース",cpu:"CPUの設定",test:"テストの設定",pass:"合言葉"};
-  const FLOW={online:["chara","course"],solo:["chara","course"],test:["chara","course"]};
-  const ACT={online:$("joinBtn"),solo:$("soloBtn"),test:$("cBtn")};
+  const FLOW={online:["chara","course"],solo:["chara","course"],test:["chara","course"],musou:["chara","course"]};
+  const ACT={online:$("joinBtn"),solo:$("soloBtn"),test:$("cBtn"),musou:$("musouBtn")};
   ACT.solo.textContent="スタート！";ACT.test.textContent="走行テスト開始！";ACT.online.textContent="ルームに入る！";
   for(const k in ACT)$("wizNav").appendChild(ACT[k]);$("wizNav").before($("menuErr"));
   let wm="solo",ws=0;
