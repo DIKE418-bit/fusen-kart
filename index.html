@@ -12,7 +12,7 @@
 <meta name="theme-color" content="#1b1640">
 <title>フーセンカート</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -50,12 +50,32 @@ body{background:var(--night);color:var(--panel);font-family:var(--body);overflow
 .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
   padding:calc(env(safe-area-inset-top,0px) + 16px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));
   background:radial-gradient(circle at 50% 30%,rgba(255,79,123,.2),transparent 60%),rgba(27,22,64,.5);overflow-y:auto;z-index:5}
+#modes{background:#1b1640 url(art/modes.jpg) center/cover no-repeat;flex-direction:column;justify-content:center;gap:2vh}
+#modes::before{content:"";position:absolute;inset:0;background:rgba(20,12,60,.28);pointer-events:none}
+.mHead{position:relative;font-family:"Mochiy Pop One",var(--display);color:#fff;font-size:clamp(1.2rem,5vmin,2rem);-webkit-text-stroke:.12em #ff5c9a;paint-order:stroke fill;text-shadow:0 .1em 0 #c4205a}
+.mList{position:relative;display:flex;flex-direction:column;gap:12px;width:min(440px,92vw)}
+.mBtn{display:flex;align-items:center;gap:14px;padding:12px 18px;border:0;border-radius:20px;cursor:pointer;color:#fff;text-align:left;font-family:"Mochiy Pop One",var(--display);font-size:clamp(1rem,4.2vmin,1.35rem);
+  box-shadow:0 5px 0 rgba(0,0,0,.25),0 0 0 4px rgba(255,255,255,.85),0 10px 24px rgba(0,0,0,.35);touch-action:manipulation;transition:transform .08s}
+.mBtn:active{transform:translateY(3px) scale(.98)}
+.mBtn b{font-size:1.7em;line-height:1}.mBtn small{display:block;font-family:var(--body);font-weight:700;font-size:.62em;opacity:.92;margin-top:2px}
+.mBtn.on{background:linear-gradient(180deg,#ff7aa8,#ff3f7f)}.mBtn.so{background:linear-gradient(180deg,#5fb0ff,#2f6fe0)}.mBtn.te{background:linear-gradient(180deg,#7ee35a,#2f9a3a)}
+.mBack{position:relative;border:0;background:rgba(27,22,64,.6);color:#fff;font:700 .9rem var(--body);padding:8px 18px;border-radius:999px;cursor:pointer}
+@media (orientation:landscape) and (max-height:500px){.mList{flex-direction:row;width:min(900px,96vw)}.mBtn{flex:1;flex-direction:column;text-align:center;gap:6px;padding:12px 10px}}
+.wizTop{display:flex;align-items:center;gap:8px}.wizTop h2{flex:1;margin:0;text-align:center;font-family:"Mochiy Pop One",var(--display);font-size:1.25rem;color:var(--pop)}
+.wizDots{display:flex;justify-content:center;gap:6px}.wizDots i{width:9px;height:9px;border-radius:50%;background:#ddd3ee}.wizDots i.on{background:var(--pop);width:22px;border-radius:5px}
+.wizNav{display:flex;gap:10px;position:sticky;bottom:-16px;margin:0 -22px -24px;padding:12px 22px 16px;background:var(--panel);border-radius:0 0 22px 22px;box-shadow:0 -8px 14px -10px rgba(0,0,0,.25);z-index:2}.wizNav .btn{flex:1;margin:0}
 #title{background:#1b1640 url(art/title.jpg) center/cover no-repeat;flex-direction:column;justify-content:space-between;cursor:pointer}
 #title::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,10,60,.35),transparent 35%,transparent 60%,rgba(20,10,60,.55));pointer-events:none}
-.tLogo{position:relative;margin-top:2vh;display:flex;flex-direction:column;align-items:center;font-family:var(--display);line-height:.95;text-align:center;
-  font-size:clamp(3rem,15vmin,7.5rem);color:#fff;-webkit-text-stroke:.08em #ff3f7f;paint-order:stroke fill;text-shadow:0 .08em 0 #c4205a,0 .16em .3em rgba(0,0,0,.45);transform:rotate(-4deg);animation:tBob 2.4s ease-in-out infinite}
-.tLogo span:last-child{color:#ffd23a;-webkit-text-stroke-color:#2f6fe0;text-shadow:0 .08em 0 #1d4ab0,0 .16em .3em rgba(0,0,0,.45);font-size:1.12em}
-@keyframes tBob{0%,100%{transform:rotate(-4deg) translateY(0)}50%{transform:rotate(-3deg) translateY(-6px)}}
+.tLogo{position:relative;margin-top:1vh;display:flex;flex-direction:column;align-items:center;font-family:"Mochiy Pop One","Zen Maru Gothic",var(--display);line-height:1;text-align:center;
+  font-size:clamp(2.8rem,14vmin,7rem);animation:tSway 3.2s ease-in-out infinite;pointer-events:none}
+.tRow{display:flex;gap:.02em}.tRow.b{font-size:1.15em;margin-top:-.06em}
+.tLogo i{font-style:normal;display:inline-block;color:#fff;-webkit-text-stroke:.16em var(--c1);paint-order:stroke fill;
+  text-shadow:0 .1em 0 var(--c2),.04em .14em 0 var(--c2),0 .2em .25em rgba(0,0,0,.35),0 0 .5em rgba(255,255,255,.6);
+  animation:tPop 1.6s cubic-bezier(.3,1.6,.5,1) infinite;animation-delay:calc(var(--d)*.12s);transform-origin:50% 90%}
+.tRow.a i{--c1:#ff6fa8;--c2:#d63c7c}.tRow.a i:nth-child(2){--c1:#ff9a3d;--c2:#d0661a}.tRow.a i:nth-child(3){--c1:#ffcc33;--c2:#d09a10}.tRow.a i:nth-child(4){--c1:#6fd06a;--c2:#3a9a3a}
+.tRow.b i{--c1:#4fa8ff;--c2:#2a6ad0}.tRow.b i:nth-child(2){--c1:#b07cff;--c2:#7a4ad0}.tRow.b i:nth-child(3){--c1:#ff6fa8;--c2:#d63c7c}
+@keyframes tPop{0%,55%,100%{transform:translateY(0) scale(1,1) rotate(0)}15%{transform:translateY(-.22em) scale(.92,1.1) rotate(-6deg)}30%{transform:translateY(0) scale(1.12,.86) rotate(4deg)}42%{transform:translateY(-.05em) scale(.97,1.04)}}
+@keyframes tSway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(2deg)}}
 .tStart{position:relative;margin-bottom:3vh;font-family:var(--display);font-size:clamp(1.4rem,5.5vmin,2.4rem);color:#fff;letter-spacing:.12em;padding:.5em 2.2em;border:0;border-radius:999px;cursor:pointer;
   background:linear-gradient(180deg,#ff7aa8,#ff3f7f);box-shadow:0 6px 0 #b8255a,0 0 0 5px rgba(255,255,255,.85),0 10px 30px rgba(0,0,0,.4);animation:tPulse 1.1s ease-in-out infinite;touch-action:manipulation}
 .tStart:active{transform:translateY(4px);box-shadow:0 2px 0 #b8255a,0 0 0 5px rgba(255,255,255,.85)}
@@ -210,14 +230,23 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
 </div>
 
 <section class="screen" id="title">
-  <div class="tLogo" aria-label="アニマルカート"><span>アニマル</span><span>カート</span></div>
+  <div class="tLogo" aria-label="アニマルカート"><div class="tRow a"><i style="--d:0">ア</i><i style="--d:1">ニ</i><i style="--d:2">マ</i><i style="--d:3">ル</i></div><div class="tRow b"><i style="--d:4">カ</i><i style="--d:5">ー</i><i style="--d:6">ト</i></div></div>
   <button class="tStart" id="tStart" type="button">スタート</button>
   <div class="tTap">画面をタップしてもスタート</div>
 </section>
+<section class="screen" id="modes" hidden>
+  <div class="mHead">プレイモードをえらんでね</div>
+  <div class="mList">
+    <button class="mBtn on" type="button" data-mode="online"><b>👥</b><span>合言葉で入る<small>友だちと対戦（CPUも入れられる）</small></span></button>
+    <button class="mBtn so" type="button" data-mode="solo"><b>🤖</b><span>ひとりでCPUと対戦<small>CPUの人数と強さを選べる</small></span></button>
+    <button class="mBtn te" type="button" data-mode="test"><b>🧪</b><span>走行テスト<small>アイテムやSPECを自由に試せる</small></span></button>
+  </div>
+  <button class="mBack" id="mBack" type="button">← タイトルへ</button>
+</section>
 <section class="screen" id="menu" hidden>
   <div class="card">
-    <div class="logo">フーセン<br>カート</div>
-    <div class="sub">風船3つを守りぬけ！割られたら脱落</div>
+    <div class="wizTop"><h2 id="wizTitle">キャラクター</h2></div>
+    <div class="wizDots" id="wizDots"></div>
     <div class="field"><label for="nameIn">なまえ</label><input id="nameIn" maxlength="10" placeholder="例：ダイキ" autocomplete="off"></div>
     <div class="field"><label>キャラクター</label><div class="chars" id="chars"></div><p class="note" id="specNote"></p></div>
     <div class="field"><label>コース</label><div class="courses" id="courses"></div></div>
@@ -232,7 +261,8 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <div class="err" id="menuErr" hidden></div>
     <button class="btn dogC" id="cBtn" type="button">ひとりで走行テスト（敵なし）</button>
     <button class="btn alt" id="soloBtn" type="button">ひとりでCPUと練習</button>
-    <dl class="ctl">
+    <div class="wizNav" id="wizNav"><button class="btn ghost" id="wizBack" type="button">← もどる</button><button class="btn" id="wizNext" type="button">つぎへ →</button></div>
+    <dl class="ctl" id="ctlHelp">
       <dt>アクセル</dt><dd>自動</dd>
       <dt>ハンドル</dt><dd>画面の左側を左右にスライド（PCは ← →）</dd>
       <dt>ドリフト</dt><dd>右下のドリフトを押しながら曲がる（PCは Shift）</dd>
@@ -477,7 +507,7 @@ function rollItem(e){const odds=ITEM_ODDS[clamp((e&&e.b)||3,1,4)];let tot=0;for(
 const CPU_NAMES=["ポン太","ミルク","ガブ","モモ","コタロウ","ルナ"];
 const DRIFT_COL=["#ffffff","#4fc3ff","#ff9a2e","#c45cff"];
 
-const scr={title:$("title"),menu:$("menu"),lobby:$("lobby"),result:$("result")};
+const scr={title:$("title"),modes:$("modes"),menu:$("menu"),lobby:$("lobby"),result:$("result")};
 function show(name){for(const k in scr)scr[k].hidden=k!==name;$("hud").hidden=!!name;$("mini").hidden=!!name;}
 
 // ---------- prefs ----------
@@ -1031,7 +1061,7 @@ function finish(){sfx("whistle");setTimeout(()=>sfx(me&&me.b>0&&(roundEnts().fil
   $("resList").innerHTML=rows.map((r,i)=>`<li><span class="rk">${i+1}</span><span class="dot" style="background:${r.e.color}"></span><span>${esc(r.e.name)}${r.e===me?"（あなた）":""}</span><span class="pts">🎈${r.e.b}　${r.s}pt</span></li>`).join("");
   setTimeout(()=>{if(phase==="over")show("result");},1200);
 }
-function toMenu(){clones=[];remoteClones.clear();$("face").hidden=true;$("splash").hidden=true;leaveOnline();mode=null;me=null;bots=[];phase="menu";show("menu");}
+function toMenu(){clones=[];remoteClones.clear();$("face").hidden=true;$("splash").hidden=true;leaveOnline();mode=null;me=null;bots=[];phase="menu";show("modes");}
 function goFull(){const d=document.documentElement;try{if(!document.fullscreenElement&&d.requestFullscreen)d.requestFullscreen({navigationUI:"hide"}).catch(()=>{});}catch(e){}}
 for(const id of ["joinBtn","soloBtn","cBtn","startBtn"])$(id).addEventListener("click",goFull);
 $("joinBtn").onclick=joinOnline;$("soloBtn").onclick=startSolo;$("cBtn").onclick=()=>{savePrefs();$("splashImg").src=ART[myChar].main;show(null);$("hud").hidden=true;$("mini").hidden=true;$("splash").hidden=false;};
@@ -2397,7 +2427,25 @@ try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])
 {const wrap=$("courses");for(const k in COURSES){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",k===pickedCourse);b.textContent=COURSES[k].icon+" "+COURSES[k].name;
   b.onclick=()=>{pickedCourse=k;try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");s.co=k;localStorage.setItem("fk-prefs",JSON.stringify(s));}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));setTimeout(()=>loadCourse(k),30);};wrap.appendChild(b);}}
 show("title");loadCourse(pickedCourse);showSpecNote();
-{const go=e=>{if(e)e.preventDefault();SND.init();sfx("go");goFull();show("menu");};$("tStart").addEventListener("click",e=>{e.stopPropagation();go(e);});$("title").addEventListener("click",go);}
+// ---------- step-by-step setup after choosing a play mode ----------
+{const F=id=>$(id).closest(".field");
+  const PARTS={chara:[F("nameIn"),F("chars"),F("colors")],course:[F("courses")],cpu:[F("cpuLv"),F("cpuNum"),F("soloTm")],test:[F("testCpu"),F("testLv")],pass:[F("passIn")]};
+  const TITLE={chara:"キャラクター",course:"コース",cpu:"CPUの設定",test:"テストの設定",pass:"合言葉"};
+  const FLOW={online:["chara","course","pass"],solo:["chara","course","cpu"],test:["chara","course","test"]};
+  const ACT={online:$("joinBtn"),solo:$("soloBtn"),test:$("cBtn")};
+  ACT.solo.textContent="スタート！";ACT.test.textContent="走行テスト開始！";ACT.online.textContent="ルームに入る！";
+  for(const k in ACT)$("wizNav").appendChild(ACT[k]);$("wizNav").before($("menuErr"));
+  let wm="solo",ws=0;
+  const render=()=>{const fl=FLOW[wm],cur=fl[ws];for(const k in PARTS)for(const el of PARTS[k])el.hidden=k!==cur;
+    $("wizTitle").textContent=TITLE[cur];$("wizDots").innerHTML=fl.map((_,i)=>`<i class="${i===ws?"on":""}"></i>`).join("");
+    const last=ws===fl.length-1;$("wizNext").hidden=last;for(const k in ACT)ACT[k].hidden=!(last&&k===wm);$("menuErr").hidden=true;$("ctlHelp").hidden=!(last&&wm==="test");
+    if(cur==="chara")showSpecNote();$("menu").scrollTop=0;};
+  document.querySelectorAll("#modes .mBtn").forEach(b=>b.addEventListener("click",()=>{wm=b.dataset.mode;ws=0;render();show("menu");}));
+  $("mBack").onclick=()=>show("title");
+  $("wizNext").onclick=()=>{if(wm==="online"&&FLOW[wm][ws]==="chara"){}ws=Math.min(FLOW[wm].length-1,ws+1);render();};
+  $("wizBack").onclick=()=>{if(ws>0){ws--;render();}else show("modes");};
+  render();}
+{const go=e=>{if(e)e.preventDefault();SND.init();sfx("go");goFull();show("modes");};$("tStart").addEventListener("click",e=>{e.stopPropagation();go(e);});$("title").addEventListener("click",go);}
 {let lastTouch=0;
   document.addEventListener("touchend",e=>{const t=e.target;if(t.closest&&t.closest("input,select,textarea"))return;const n=Date.now();if(n-lastTouch<400||t.closest&&t.closest(".pbtn,#game"))e.preventDefault();lastTouch=n;},{passive:false});
   document.addEventListener("touchstart",e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
