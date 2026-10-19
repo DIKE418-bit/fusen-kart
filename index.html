@@ -383,7 +383,7 @@ const SPECS={
   squirrel:{name:"電光石火",icon:"⚡",dur:40000,desc:"40秒間、スピード2.5倍＋ぶつかった相手から最後に取ったアイテムを1個ずつ盗む"},
   lion:{name:"王の徴収",icon:"👑",dur:40000,desc:"40秒間、ボタンを押すたびに空いているストックの数だけ、だれかのアイテムをランダムに徴収"},
   kangaroo:{name:"袋隠し",icon:"👜",dur:40000,desc:"40秒間、アイテムボックスが自分にしか見えず自分しか取れない"},
-  sheep:{name:"もこもこガード",icon:"🐑",dur:40000,desc:"40秒間、ふわふわの羊毛で攻撃を2回まで無効にする"},
+  sheep:{name:"ムートンドリーム",icon:"🐑",desc:"風船を最大の6個まで一気に補充する（残り1個なら+5、5個なら+1）"},
   goat:{name:"デーモンナイトメア",icon:"😈",desc:"自分の風船を1つ生贄にして、ほかのプレイヤー全員の風船を1つずつ割る（風船2個以上で使える・バリアでも防げない）"}};
 const ICE_R=120,CLONE_MS=40000,DASH_SPEED=2.5,RAGE_SPEED=1.5,RAGE_MS=40000,RAGE_CD=550,FREEZE_MS=1500,KNOCK_V=3600,KNOCK_MS=1400;
 let clones=[],remoteClones=new Map(),remoteBots=new Map();
@@ -437,6 +437,7 @@ function canSpec(e,t){const S=SPECS[e.skin];if(!S||e.clone||e.b<=0||phase!=="pla
   if(e.spUsed)return false;
   if(e.skin==="bear"&&e.b<2)return false;
   if(e.skin==="goat"&&e.b<2)return false;
+  if(e.skin==="sheep"&&e.b>=MAX_BALLOONS)return false;
   return true;}
 function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e===me;
   if(e.bearRage>t){e.bearCd=t+RAGE_CD;return launch(e,"homing",t,false);}
@@ -450,7 +451,7 @@ function useSpec(e,t){if(!canSpec(e,t))return false;const S=SPECS[e.skin],mine=e
     case"squirrel":e.dashUntil=t+S.dur;if(mine)flash("⚡ 電光石火！",1300);break;
     case"lion":e.kingUntil=t+S.dur;e.kingCd=t+350;if(mine)flash("👑 王の徴収！40秒間、ボタンを押すたびにアイテムを徴収！",1500);kingTax(e,t);break;
     case"goat":demonNightmare(e,t);break;
-    case"sheep":e.woolUntil=t+S.dur;e.woolN=2;if(mine)flash("🐑 もこもこガード！40秒間、攻撃を2回まで防ぐ",1600);break;
+    case"sheep":{const add=MAX_BALLOONS-e.b;e.b=MAX_BALLOONS;e.prevB=e.b;e.bearPrevB=e.b;popFx(e.x,e.y,"#ffffff",40);if(mine)flash("🐑 ムートンドリーム！風船が"+add+"個ふえて6個に！",1800);break;}
     case"kangaroo":e.pouchUntil=t+S.dur;if(mine)flash("👜 袋隠し！40秒間アイテムはあなただけのもの",1800);break;}
   e.spUsed=true;e.spDoneAt=t+Math.min(S.dur||0,10000)+1500;return true;}
 function spawnClones(o,t){for(let i=0;i<3;i++){const c=makeEnt(o.id+"#c"+i,o.name,o.color,true,true);c.skin=o.skin;c.clone=true;c.owner=o.id;c.cloneUntil=t+CLONE_MS;
@@ -652,7 +653,7 @@ function botThink(b,t,dt){
     if(b.bearRage>t){if(td<750&&t>=(b.bearCd||0))useSpec(b,t);}
     else if(b.skin==="lion"&&t<(b.kingUntil||0)){if(Math.random()<dt*2)useSpec(b,t);}
     else if(!b.spUsed&&t-phaseAt>6000&&Math.random()<dt*.5*L.spec){const k=b.skin;let go=false;
-      if(k==="dog")go=td<700||Math.random()<.05;else if(k==="sheep")go=td<520;else if(k==="goat")go=b.b>=3||(b.b>=2&&Math.random()<.03);else if(k==="lion")go=allEnts().some(o=>o!==b&&!o.clone&&!ally(b,o)&&invCount(o)>0);else if(k==="penguin")go=td<ICE_R*.9;
+      if(k==="dog")go=td<700||Math.random()<.05;else if(k==="sheep")go=b.b<=2||(b.b<=4&&Math.random()<.02);else if(k==="goat")go=b.b>=3||(b.b>=2&&Math.random()<.03);else if(k==="lion")go=allEnts().some(o=>o!==b&&!o.clone&&!ally(b,o)&&invCount(o)>0);else if(k==="penguin")go=td<ICE_R*.9;
       else if(k==="squirrel")go=td<260||Math.random()<.05;else if(k==="cat")go=Math.random()<.08;else go=Math.random()<.06;
       if(go)useSpec(b,t);}}
   const want=Math.atan2(dy,dx)+Math.sin(t/800+b.seed)*L.wob;
@@ -1712,9 +1713,9 @@ function frame(){
       if(box.dataset.k!==key){box.dataset.k=key;box.innerHTML=st.map((x,i)=>`<div class="s" data-i="${i}"><span>${ITEMS[x.k]?ITEMS[x.k].name:""}</span><b>${iconHTML(x.k)}${live?"<i>∞</i>":(x.n>1?"<i>×"+x.n+"</i>":"")}</b></div>`).join("");}}
     {const S=SPECS[me.skin]||SPECS.dog,sb=$("specBtn");let cls,ic=S.icon,nm=S.name,tm="";const act=specActiveUntil(me,t);
       if(me.bearRage>t){cls="on";ic="🎯";nm="報復連射 "+(me.greedN||0)+"/2";tm=Math.ceil((me.bearRage-t)/1000)+"秒";}
-      else if(act>t){cls="on";const r=(act-t)/1000;tm=r>=60?Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0"):r.toFixed(1)+"秒";if(me.skin==="bear")nm="強欲待機";if(me.skin==="sheep")nm="もこもこ×"+(me.woolN||0);if(me.skin==="lion")nm=freeSlots(me,t)>0?"押して徴収":"ストック満杯";}
+      else if(act>t){cls="on";const r=(act-t)/1000;tm=r>=60?Math.floor(r/60)+":"+String(Math.floor(r%60)).padStart(2,"0"):r.toFixed(1)+"秒";if(me.skin==="bear")nm="強欲待機";if(me.skin==="lion")nm=freeSlots(me,t)>0?"押して徴収":"ストック満杯";}
       else if(canSpec(me,t)){cls="ready";tm="SPEC";}
-      else{cls="off";tm=me.spUsed?"使用済み":((me.skin==="bear"||me.skin==="goat")&&me.b<2?"風船2個〜":"");}
+      else{cls="off";tm=me.spUsed?"使用済み":((me.skin==="bear"||me.skin==="goat")&&me.b<2?"風船2個〜":(me.skin==="sheep"&&me.b>=MAX_BALLOONS?"風船MAX":""));}
       const key=cls+ic+nm+tm;if(sb.dataset.k!==key){sb.dataset.k=key;sb.className="pbtn "+cls;$("spIc").textContent=ic;$("spName").textContent=nm;$("spT").textContent=tm;}}
     {const live=me.star&&t<me.star;iB.classList.toggle("starOn",!!live);iB.classList.toggle("empty",!it&&!live);
       const bk=live?"starOn":(it?it.k+me.color:""),bi=$("btnIc");if(bi.dataset.k!==bk){bi.dataset.k=bk;bi.innerHTML=live?iconHTML("star"):(it?iconHTML(it.k):"・");}
