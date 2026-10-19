@@ -308,6 +308,9 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
     spring:{bpm:126,lead:"triangle",bass:"bounce",pad:"stab",drums:"K.hSK.hS",fill:"K.KSKSSS",bars:[
       ["C","E5 G5 C6 . G5 . E5 G5"],["Am","A5 . C6 E6 . C6 A5 ."],["F","F5 A5 C6 . A5 . F5 A5"],["G","G5 . B5 D6 _ . . ."],
       ["C","C6 . D6 E6 . G6 E6 ."],["Am","E6 . D6 C6 . A5 C6 ."],["F","D6 . C6 A5 . F5 A5 C6"],["G","B5 . A5 G5 _ . . ."]]},
+    autumn:{bpm:108,lead:"koto",bass:"soft",pad:"stab",drums:"K.h.Sh.h",fill:"K.KhSSSS",bars:[
+      ["Dm","D6 . A5 . F5 G5 A5 ."],["Bb","Bb5 . F5 . D6 . C6 ."],["C","C6 . G5 . E5 F5 G5 ."],["Dm","A5 _ F5 . D5 . . ."],
+      ["F","F5 . A5 C6 . A5 C6 D6"],["C","E6 . D6 C6 . G5 A5 ."],["Bb","D6 . C6 Bb5 . F5 G5 ."],["A","A5 _ C#6 . E6 . . ."]]},
     star:{bpm:176,lead:"square",bass:"oct",pad:"none",drums:"KhShKhSh",bars:[
       ["C","C6 E6 G6 C7 G6 E6 C6 E6"],["F","C6 F6 A6 C7 A6 F6 C6 F6"],["G","B5 D6 G6 B6 G6 D6 B5 D6"],["C","C6 E6 G6 C7 G6 E6 G6 E6"]]}};
   for(const k in SONGS){const S=SONGS[k];S.steps=[];S.bars.forEach(([c,l],bi)=>{const tk=l.trim().split(/\s+/),ch=chord(c);tk.forEach((x,i)=>{S.steps.push({c:ch,bar:bi,i,n:x==="."||x==="_"?null:midi(x)});});
@@ -315,7 +318,8 @@ const SND=(()=>{let ctx=null,master,musG,sfxG,noiseBuf,muted=false,song=null,son
       tk.forEach((x,i)=>{if(x==="."||x==="_")return;let len=1;while(tk[i+len]==="_")len++;S.steps[bi*8+i].len=len;});});}
   function playStep(S,st,t,d){const s=S.steps[st],v=S.vol||1,c=s.c,i=s.i;
     if(s.n){const f=hz(s.n),dur=d*(s.len||1)*.95;
-      if(S.lead==="bell"){osc("sine",f,t,dur+.6,.3*v,musG);osc("sine",f*3,t,.25,.07*v,musG);osc("sine",f*2,t,.4,.08*v,musG);}
+      if(S.lead==="koto"){osc("triangle",f,t,dur+.35,.36*v,musG,{to:f*.985,slide:.3});osc("sine",f*2,t,.12,.12*v,musG);}
+      else if(S.lead==="bell"){osc("sine",f,t,dur+.6,.3*v,musG);osc("sine",f*3,t,.25,.07*v,musG);osc("sine",f*2,t,.4,.08*v,musG);}
       else if(S.lead==="steel"){osc("sine",f,t,dur+.25,.34*v,musG);osc("sine",f*2.01,t,.18,.1*v,musG);}
       else if(S.lead==="triangle")osc("triangle",f,t,dur+.15,.34*v,musG,{hold:.5});
       else{osc("square",f,t,dur,.17*v,musG,{hold:.6});osc("square",f,t,dur,.06*v,musG,{hold:.6,det:12});}}
@@ -1404,6 +1408,89 @@ function buildSpring(){
   springPetals=add(new THREE.Points(g,new THREE.PointsMaterial({color:0xffa6c9,size:9,transparent:true,opacity:.9,depthWrite:false})));springLast=0;}
 function springTick(t){if(!springPetals)return;const dt=springLast?Math.min(.05,(t-springLast)/1000):0;springLast=t;const a=springPetals.geometry.attributes.position,p=a.array;
   for(let i=0;i<p.length;i+=3){p[i+1]-=38*dt;p[i]+=(30+Math.sin(t/700+i)*25)*dt;p[i+2]+=Math.cos(t/900+i)*14*dt;if(p[i+1]<0){p[i+1]+=500;p[i]-=400;}}a.needsUpdate=true;}
+// ---------- Autumn Farm: dirt field with hay bales, fenced leaf wedges, maples, a water wheel and falling leaves ----------
+const AF={W:4800,H:3200};
+const afim=(x,y)=>[Math.round((x-210)/1130*AF.W),Math.round((y-105)/745*AF.H)];
+const AF_BALES=[[415,180],[585,290],[1115,170],[975,255],[825,400],[560,500],[1025,560],[740,640],[385,700],[1170,735]].map(([x,y])=>afim(x,y));
+const AF_BALE_R=115;
+// wedges: [base point A, base point B, apex] — fenced triangles pointing into the field from each side
+const AF_WEDGES=[[[2090,300],[2710,300],[2400,640]],[[2090,2900],[2710,2900],[2400,2560]],[[300,1290],[300,1910],[660,1600]],[[4500,1290],[4500,1910],[4140,1600]]];
+const AF_PILLARS=[...AF_BALES.map(([x,y])=>({x,y,r:AF_BALE_R,bale:true}))];
+// fill each wedge with circles so karts and shots bounce off the whole triangle
+for(const [A,B,C] of AF_WEDGES){const pts=[];for(let u=0;u<=1.0001;u+=.2)for(let v=0;v<=1.0001-u;v+=.2){const w=1-u-v;pts.push([A[0]*u+B[0]*v+C[0]*w,A[1]*u+B[1]*v+C[1]*w]);}
+  for(const [x,y] of pts)AF_PILLARS.push({x:Math.round(x),y:Math.round(y),r:62,wedge:true});}
+let autumnLeaves=null,autumnLast=0,autumnWheel=null;
+function buildAutumn(){
+  const cx=W/2,cy=H/2,glowM=new THREE.SpriteMaterial({map:glowTex,color:0xffb04a,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.75});
+  const leafCols=["#e8442a","#ff7a1a","#ffb21e","#c8301e","#f5902a"];
+  // dirt field with tyre marks and scattered leaves
+  const dirt=canvasTex(1024,683,(g,w,h)=>{const gr=g.createRadialGradient(w/2,h/2,40,w/2,h/2,w*.7);gr.addColorStop(0,"#d8964a");gr.addColorStop(1,"#b8742e");g.fillStyle=gr;g.fillRect(0,0,w,h);
+    for(let i=0;i<3000;i++){g.fillStyle=`rgba(${Math.random()<.5?"120,70,30":"240,190,120"},${Math.random()*.3})`;g.fillRect(Math.random()*w,Math.random()*h,2,2);}
+    g.lineCap="round";for(let k=0;k<16;k++){g.strokeStyle="rgba(110,60,25,.18)";g.lineWidth=4;const x=Math.random()*w,y=Math.random()*h,r=60+Math.random()*180,a=Math.random()*6;for(const o of [0,9]){g.beginPath();g.arc(x,y,r+o,a,a+1.2);g.stroke();}}
+    for(let i=0;i<340;i++){g.save();g.translate(Math.random()*w,Math.random()*h);g.rotate(Math.random()*6);g.fillStyle=leafCols[i%5];g.beginPath();for(let k=0;k<5;k++){const a=k/5*Math.PI*2;g.lineTo(Math.cos(a)*6,Math.sin(a)*6);g.lineTo(Math.cos(a+.6)*2.5,Math.sin(a+.6)*2.5);}g.fill();g.restore();}
+    g.strokeStyle="rgba(255,220,160,.6)";g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);});
+  const floor=add(new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshStandardMaterial({map:dirt,roughness:1,color:new THREE.Color("#e6d2bf")})));floor.rotation.x=-Math.PI/2;floor.position.set(cx,0,cy);floor.receiveShadow=true;
+  // rocky plateau, stream below, leafy ground beyond
+  const rockM=T("#7d6e62",{roughness:.95}),topM=T("#a0662c",{roughness:1}),waterM=new THREE.MeshStandardMaterial({color:new THREE.Color("#4fb0d8").convertSRGBToLinear(),roughness:.1,metalness:.2,emissive:new THREE.Color("#174e78").convertSRGBToLinear(),emissiveIntensity:.15});
+  const B=260,plat=add(new THREE.Mesh(new THREE.BoxGeometry(W+B*2,80,H+B*2),[rockM,rockM,topM,rockM,rockM,rockM]),true);plat.position.set(cx,-40.5,cy);
+  const water=add(new THREE.Mesh(new THREE.PlaneGeometry(W+B*2+700,H+B*2+700),waterM));water.rotation.x=-Math.PI/2;water.position.set(cx,-70,cy);
+  const bank=add(new THREE.Mesh(new THREE.PlaneGeometry(16000,16000),T("#b8682a",{roughness:1})));bank.rotation.x=-Math.PI/2;bank.position.set(cx,-90,cy);
+  const fallM=new THREE.MeshBasicMaterial({color:0xeefaff,transparent:true,opacity:.8,side:THREE.DoubleSide});
+  for(const [x,z,ry] of [[-B,300,Math.PI/2],[W+B,700,Math.PI/2],[W+B,2500,Math.PI/2],[2400,H+B,0]]){const f=add(new THREE.Mesh(new THREE.PlaneGeometry(120,70),fallM));f.position.set(x,-35,z);f.rotation.y=ry;}
+  const woodM=T("#8a5a32",{roughness:.85}),darkWood=T("#5e3a1e",{roughness:.9});
+  for(const [x,z] of [[-B-170,1600],[W+B+170,1600]]){const br=add(new THREE.Mesh(new THREE.BoxGeometry(360,10,110),woodM),true);br.position.set(x,-36,z);
+    for(const sd of [-1,1]){const r=add(new THREE.Mesh(new THREE.BoxGeometry(360,4,4),woodM));r.position.set(x,-10,z+sd*52);}}
+  // fence with lanterns and maple banners
+  const lampM=new THREE.MeshStandardMaterial({color:0xffe2a0,emissive:0xffa030,emissiveIntensity:1.2});
+  const banTex=canvasTex(64,128,(g,w,h)=>{g.fillStyle="#e8442a";g.fillRect(0,0,w,h);g.fillStyle="#ffd23a";g.beginPath();for(let k=0;k<5;k++){const a=k/5*Math.PI*2-Math.PI/2;g.lineTo(32+Math.cos(a)*16,56+Math.sin(a)*16);g.lineTo(32+Math.cos(a+.63)*6,56+Math.sin(a+.63)*6);}g.fill();});
+  const banM=new THREE.MeshStandardMaterial({map:banTex,side:THREE.DoubleSide,roughness:.7});
+  const lantern=(x,z)=>{const p=add(new THREE.Mesh(new THREE.CylinderGeometry(4,5,60,8),darkWood),true);p.position.set(x,30,z);const l=add(new THREE.Mesh(new THREE.BoxGeometry(16,18,16),lampM));l.position.set(x,68,z);
+    const cap=add(new THREE.Mesh(new THREE.ConeGeometry(13,10,4),darkWood));cap.position.set(x,82,z);cap.rotation.y=Math.PI/4;const gl=new THREE.Sprite(glowM);gl.scale.set(64,64,1);gl.position.set(x,68,z);CG.add(gl);};
+  const banner=(x,z,ry)=>{const p=add(new THREE.Mesh(new THREE.CylinderGeometry(3,3,120,6),darkWood),true);p.position.set(x,60,z);const b=add(new THREE.Mesh(new THREE.PlaneGeometry(34,70),banM));b.position.set(x,84,z);b.rotation.y=ry;};
+  const fenceRun=(x1,z1,x2,z2,deco)=>{const L=Math.hypot(x2-x1,z2-z1),n=Math.max(1,Math.ceil(L/110));for(let i=0;i<=n;i++){const u=i/n,x=x1+(x2-x1)*u,z=z1+(z2-z1)*u;if(deco&&Math.abs(u-.5)<.06)continue;
+      const po=add(new THREE.Mesh(new THREE.CylinderGeometry(4,4,36,6),woodM),true);po.position.set(x,18,z);
+      if(i<n&&!(deco&&Math.abs(u+.5/n-.5)<.07)){const xn=x1+(x2-x1)*(i+1)/n,zn=z1+(z2-z1)*(i+1)/n;for(const h of [13,27]){const r=add(new THREE.Mesh(new THREE.BoxGeometry(L/n,4,4),woodM));r.position.set((x+xn)/2,h,(z+zn)/2);r.rotation.y=-Math.atan2(zn-z,xn-x);}}
+      if(deco){const off=26,ox=z1===z2?0:(x1<cx?-off:off),oz=z1===z2?(z1<cy?-off:off):0;if(i%4===0)lantern(x+ox,z+oz);else if(i%4===2)banner(x+ox,z+oz,z1===z2?0:Math.PI/2);}}};
+  const o=-22;fenceRun(o,o,W-o,o,true);fenceRun(W-o,o,W-o,H-o,true);fenceRun(W-o,H-o,o,H-o,true);fenceRun(o,H-o,o,o,true);
+  // leaf piles (instanced-ish small boxes) and the fenced wedges
+  const leafMs=leafCols.map(c=>T(c,{roughness:.8})),leafGeo=new THREE.BoxGeometry(14,3,10);
+  const leaves=(x,z,rad,n)=>{for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*rad,m=add(new THREE.Mesh(leafGeo,leafMs[i%5]));m.position.set(x+Math.cos(a)*r,1.5+Math.random()*3,z+Math.sin(a)*r);m.rotation.set(Math.random()*.6,Math.random()*6,Math.random()*.6);}};
+  for(const [A,B2,C] of AF_WEDGES){fenceRun(A[0],A[1],C[0],C[1]);fenceRun(C[0],C[1],B2[0],B2[1]);fenceRun(A[0],A[1],B2[0],B2[1]);
+    const sh=new THREE.Shape();sh.moveTo(A[0],-A[1]);sh.lineTo(B2[0],-B2[1]);sh.lineTo(C[0],-C[1]);sh.closePath();
+    const pile=add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:14,bevelEnabled:false}),T("#d0601e",{roughness:.95})),true);pile.rotation.x=-Math.PI/2;
+    leaves((A[0]+B2[0]+C[0])/3,(A[1]+B2[1]+C[1])/3,170,60);}
+  // hay bales lying on their side with leaves around
+  const hay=canvasTex(128,128,(g,w,h)=>{g.fillStyle="#e2c46a";g.fillRect(0,0,w,h);for(let i=0;i<500;i++){g.strokeStyle=`rgba(${Math.random()<.5?"170,130,50":"250,230,150"},.7)`;g.lineWidth=1.5;const x=Math.random()*w,y=Math.random()*h;g.beginPath();g.moveTo(x,y);g.lineTo(x+(Math.random()-.5)*6,y+10+Math.random()*10);g.stroke();}});
+  hay.wrapS=hay.wrapT=THREE.RepeatWrapping;hay.repeat.set(3,1);
+  const hayEnd=canvasTex(128,128,(g,w,h)=>{g.fillStyle="#e8cc72";g.fillRect(0,0,w,h);g.strokeStyle="rgba(160,120,45,.8)";g.lineWidth=3;g.beginPath();for(let a=0;a<30;a+=.1){const r=a*2;g.lineTo(64+Math.cos(a)*r,64+Math.sin(a)*r);}g.stroke();});
+  const hayM=new THREE.MeshStandardMaterial({map:hay,roughness:1}),hayEM=new THREE.MeshStandardMaterial({map:hayEnd,roughness:1});
+  AF_BALES.forEach(([x,y],i)=>{const r=AF_BALE_R*.92,len=AF_BALE_R*1.6,m=add(new THREE.Mesh(new THREE.CylinderGeometry(r*.62,r*.62,len,26),[hayM,hayEM,hayEM]),true);
+    m.rotation.z=Math.PI/2;m.rotation.y=i*.7;m.position.set(x,r*.62,y);
+    const band=add(new THREE.Mesh(new THREE.TorusGeometry(r*.63,2.5,6,26),T("#b0402a")));band.rotation.y=Math.PI/2+i*.7;band.position.set(x,r*.62,y);
+    leaves(x,y,AF_BALE_R*1.5,45);});
+  // maples
+  const trunkM2=T("#5e3a1e",{roughness:.9}),mapleMs=["#e8442a","#ff7a1a","#ffb21e","#d2301e"].map(c=>T(c,{roughness:.85}));
+  const maple=(x,z,s)=>{s=s||1;const tr=add(new THREE.Mesh(new THREE.CylinderGeometry(9*s,14*s,90*s,8),trunkM2),true);tr.position.set(x,-40+45*s,z);const c=mapleMs[Math.floor(Math.random()*4)];
+    for(let k=0;k<6;k++){const a=k/6*Math.PI*2,b=add(new THREE.Mesh(new THREE.IcosahedronGeometry((44+Math.random()*16)*s,0),k%2?c:mapleMs[(k+1)%4]),true);b.position.set(x+Math.cos(a)*40*s,-40+(100+Math.random()*30)*s,z+Math.sin(a)*40*s);}
+    const top=add(new THREE.Mesh(new THREE.IcosahedronGeometry(54*s,0),c),true);top.position.set(x,-40+150*s,z);};
+  for(let i=0;i<36;i++){const side=i%4,u=Math.random();let x,z;const d=120+Math.random()*180;if(side<2){x=-200+u*(W+400);z=side?H+d:-d;}else{z=-200+u*(H+400);x=side===2?-d:W+d;}maple(x,z,1+Math.random()*.5);}
+  for(const [x,z,sc] of [[-700,-500,2],[W+700,-500,2.2],[-700,H+500,2.1],[W+700,H+500,2],[cx-900,-900,2.3],[cx+900,H+900,2.3],[-900,cy+500,2.2],[W+900,cy-500,2.1]])maple(x,z,sc);
+  // water wheel top-left, house top-right, barrels and a leaf cart
+  {const wx=-B-60,wz=200;const g=new THREE.Group();g.position.set(wx,40,wz);CG.add(g);const rim=new THREE.Mesh(new THREE.TorusGeometry(110,10,8,30),darkWood);g.add(rim);
+    for(let k=0;k<12;k++){const a=k/12*Math.PI*2,sp=new THREE.Mesh(new THREE.BoxGeometry(220,8,8),woodM);sp.rotation.z=a;g.add(sp);const pd=new THREE.Mesh(new THREE.BoxGeometry(14,40,60),woodM);pd.position.set(Math.cos(a)*110,Math.sin(a)*110,0);pd.rotation.z=a;g.add(pd);}
+    g.rotation.y=Math.PI/2;autumnWheel=g;const hs=add(new THREE.Mesh(new THREE.BoxGeometry(200,150,180),woodM),true);hs.position.set(wx-150,20,wz-40);}
+  {const hx=W+380,hz=-140,hb=add(new THREE.Mesh(new THREE.BoxGeometry(240,140,190),woodM),true);hb.position.set(hx,30,hz);
+    const rf=add(new THREE.Mesh(new THREE.CylinderGeometry(0,200,90,4,1),T("#2e3440",{roughness:.7})),true);rf.position.set(hx,145,hz);rf.rotation.y=Math.PI/4;rf.scale.set(1,1,.82);
+    for(const dz of [-50,50]){const wn=add(new THREE.Mesh(new THREE.BoxGeometry(4,40,36),lampM));wn.position.set(hx-121,40,hz+dz);}}
+  for(const [x,z] of [[1500,H+60],[1600,H+70],[3200,H+60],[3320,H+60],[-70,2700]]){const br=add(new THREE.Mesh(new THREE.CylinderGeometry(18,16,34,12),woodM),true);br.position.set(x,17,z);}
+  {const cxr=W+170,czr=H+150,cart=add(new THREE.Mesh(new THREE.BoxGeometry(110,30,60),woodM),true);cart.position.set(cxr,30,czr);leaves(cxr,czr,40,30);for(const m of CG.children.slice(-30))m.position.y+=42;}
+  // falling leaves
+  const N=900,pos=new Float32Array(N*3),col=new Float32Array(N*3),cc=leafCols.map(c=>new THREE.Color(c));
+  for(let i=0;i<N;i++){pos[i*3]=-400+Math.random()*(W+800);pos[i*3+1]=Math.random()*500;pos[i*3+2]=-400+Math.random()*(H+800);const c=cc[i%5];col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;}
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));g.setAttribute("color",new THREE.BufferAttribute(col,3));
+  autumnLeaves=add(new THREE.Points(g,new THREE.PointsMaterial({size:11,vertexColors:true,transparent:true,opacity:.95,depthWrite:false})));autumnLast=0;}
+function autumnTick(t){if(autumnWheel)autumnWheel.children.forEach(()=>{}),autumnWheel.rotation.x=t/1500;if(!autumnLeaves)return;const dt=autumnLast?Math.min(.05,(t-autumnLast)/1000):0;autumnLast=t;const a=autumnLeaves.geometry.attributes.position,p=a.array;
+  for(let i=0;i<p.length;i+=3){p[i+1]-=45*dt;p[i]+=Math.sin(t/500+i)*40*dt;p[i+2]+=Math.cos(t/650+i)*25*dt;if(p[i+1]<0)p[i+1]+=500;}a.needsUpdate=true;}
 const COURSES={
   arena:{name:"バルーンアリーナ",icon:"🏟️",W:4500,H:2800,
     pillars:[{x:2250,y:1400,r:85},{x:1209,y:812,r:52},{x:3291,y:812,r:52},{x:1209,y:1988,r:52},{x:3291,y:1988,r:52},
@@ -1445,7 +1532,14 @@ const COURSES={
     boxes:[[2400,300],[2400,2900],[350,1600],[4450,1600],[1100,1300],[3700,1300],[1250,2050],[3600,2050],[2400,700],[2400,2300],[1600,1650],[3200,1650],[650,500],[4150,500],[650,2700],[4150,2700]],
     dash:[{x:2400,y:150,a:0},{x:2400,y:3050,a:Math.PI}],
     spawns:[[450,350],[4350,350],[450,2850],[4350,2850],[2400,480],[2400,2720],[300,1600],[4500,1600]],
-    build:buildSpring,tick:springTick}
+    build:buildSpring,tick:springTick},
+  autumn:{name:"オータムファーム",icon:"🍁",W:AF.W,H:AF.H,
+    walls:[],
+    pillars:[...AF_PILLARS,{x:0,y:0,r:200,hidden:true},{x:AF.W,y:0,r:200,hidden:true},{x:0,y:AF.H,r:200,hidden:true},{x:AF.W,y:AF.H,r:200,hidden:true}],
+    boxes:[[1300,450],[3500,450],[1300,2750],[3500,2750],[2400,1050],[2400,2150],[1150,1600],[3650,1600],[700,1000],[4100,1000],[700,2300],[4100,2300],[1800,1300],[3000,1900],[2900,1150],[1900,2050]],
+    dash:[{x:2400,y:140,a:Math.PI},{x:2400,y:3060,a:0},{x:140,y:1600,a:Math.PI/2},{x:4660,y:1600,a:-Math.PI/2}],
+    spawns:[[500,420],[4300,420],[500,2780],[4300,2780],[1100,1300],[3300,1500],[2400,850],[2700,2350]],
+    build:buildAutumn,tick:autumnTick}
 };
 let loadedCourse=null;
 let miniBg=null;
