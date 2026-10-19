@@ -72,7 +72,7 @@ body{background:var(--night);color:var(--panel);font-family:var(--body);overflow
 #coursePrev.pop img{animation:cpPop .35s cubic-bezier(.3,1.6,.5,1)}
 #charPrev{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#ffe9f2,#e6f0ff);border-radius:16px;padding:8px;margin-bottom:8px}
 #charPrev img{width:46%;max-width:200px;aspect-ratio:1.6;object-fit:cover;border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.15)}
-#charPrev b{display:block;font-family:"Mochiy Pop One",var(--display);font-size:1.15rem;color:var(--pop)}#charPrev span{display:block;font-weight:900;font-size:.85rem;color:#5a4a8a;margin-top:4px}
+#charPrev b{display:block;font-family:"Mochiy Pop One",var(--display);font-size:1.15rem;color:var(--pop)}#charPrev span{display:block;font-weight:700;font-size:.72rem;line-height:1.45;color:#5a4a8a;margin-top:4px}#charPrev span em{display:block;font-style:normal;font-weight:900;font-size:.9rem;color:#3a2a6a;margin-bottom:2px}#charPrev>div{flex:1;min-width:0}
 #charPrev.pop img{animation:cpPop .35s cubic-bezier(.3,1.6,.5,1)}@keyframes cpPop{0%{transform:scale(.8) rotate(-4deg)}100%{transform:scale(1)}}
 #cpuScr{background:#2a3a80 url(art/cpu.jpg) center/cover no-repeat}
 .cCard{position:relative;margin:auto;width:min(460px,94vw);background:rgba(255,250,240,.9);border-radius:22px;padding:16px 18px 14px;display:flex;flex-direction:column;gap:10px;
@@ -556,6 +556,7 @@ const CPU_NAMES=["ポン太","ミルク","ガブ","モモ","コタロウ","ル�
 const DRIFT_COL=["#ffffff","#4fc3ff","#ff9a2e","#c45cff"];
 
 const scr={title:$("title"),modes:$("modes"),passScr:$("passScr"),cpuScr:$("cpuScr"),menu:$("menu"),lobby:$("lobby"),result:$("result")};
+function menuCovered(){for(const k of ["title","modes","passScr","cpuScr","menu"])if(scr[k]&&!scr[k].hidden)return true;return false;}
 function show(name){for(const k in scr)scr[k].hidden=k!==name;$("hud").hidden=!!name;$("mini").hidden=!!name;}
 
 // ---------- prefs ----------
@@ -917,7 +918,7 @@ iB.addEventListener("pointercancel",()=>{itemPress=null;});iB.addEventListener("
   box.addEventListener("pointerup",e=>{const d=e.target.closest&&e.target.closest("div[data-i]");if(!d||!me||d._id!==e.pointerId)return;e.preventDefault();useStarSlot(me,+d.dataset.i,now(),e.clientY-(d._sy||e.clientY)>30);});
   box.addEventListener("contextmenu",e=>e.preventDefault());}
 {const sb=$("specBtn");sb.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();if(me)useSpec(me,now());});sb.addEventListener("contextmenu",e=>e.preventDefault());}
-function showSpecNote(){const S=SPECS[myChar];if(S)$("specNote").textContent="SPEC「"+S.icon+" "+S.name+"」："+S.desc;const pv=$("charPrev");if(pv&&ART[myChar]){const im=pv.querySelector("img");if(im.dataset.k!==myChar){im.dataset.k=myChar;im.src=ART[myChar].main;pv.classList.remove("pop");void pv.offsetWidth;pv.classList.add("pop");}$("cpName").textContent=CHARS[myChar];$("cpSpec").textContent=S?S.icon+" "+S.name:"";}}
+function showSpecNote(){const S=SPECS[myChar];if(S)$("specNote").textContent="SPEC「"+S.icon+" "+S.name+"」："+S.desc;const pv=$("charPrev");if(pv&&ART[myChar]){const im=pv.querySelector("img");if(im.dataset.k!==myChar){im.dataset.k=myChar;im.src=ART[myChar].main;pv.classList.remove("pop");void pv.offsetWidth;pv.classList.add("pop");}$("cpName").textContent=CHARS[myChar];$("cpSpec").innerHTML=S?"<em>"+S.icon+" "+S.name+"</em>"+esc(S.desc):"";$("specNote").hidden=true;}}
 let kSteer=0;
 function readSteer(dt){
   let k=0;if(keys.has("ArrowLeft")||keys.has("KeyA"))k--;if(keys.has("ArrowRight")||keys.has("KeyD"))k++;
@@ -1887,8 +1888,8 @@ function mergeStatic(){const groups=new Map();
 const courseShots={};
 function courseShot(){const cv=renderer.domElement,pr=renderer.getPixelRatio();renderer.setPixelRatio(1);renderer.setSize(960,540,false);const cam=new THREE.PerspectiveCamera(36,16/9,10,40000),S=Math.max(W,H);
   cam.position.set(W/2,S*.95,H/2+S*.78);cam.lookAt(W/2,0,H/2+S*.03);const f=scene.fog;scene.fog=null;renderer.render(scene,cam);const url=cv.toDataURL("image/jpeg",.82);scene.fog=f;renderer.setPixelRatio(pr);resize();return url;}
-function showCoursePrev(){const box=$("coursePrev");if(!box||!loadedCourse)return;const id=courseId0();if(!courseShots[id])courseShots[id]=courseShot();
-  const im=box.querySelector("img");im.src=courseShots[id];$("cpvName").textContent=loadedCourse.icon+" "+loadedCourse.name;box.classList.remove("pop");void box.offsetWidth;box.classList.add("pop");}
+function showCoursePrev(id){const box=$("coursePrev");id=id||pickedCourse;const c=COURSES[id];if(!box||!c)return;
+  const im=box.querySelector("img");im.src="art/course_"+id+".jpg";$("cpvName").textContent=c.icon+" "+c.name;box.classList.remove("pop");void box.offsetWidth;box.classList.add("pop");}
 function courseId0(){for(const k in COURSES)if(COURSES[k]===loadedCourse)return k;return "arena";}
 function loadCourse(id){
   const c=COURSES[id]||COURSES.arena;if(loadedCourse===c)return;
@@ -2460,7 +2461,7 @@ function frame(){
     $("speed").classList.remove("on");
     const a=t/9000;camera.position.set(W/2+Math.cos(a)*W*.66,380*Math.max(1,W/2400),H/2+Math.sin(a)*H*.76);camera.lookAt(W/2,0,H/2);
   }
-  menuSkip=!playing&&!menuSkip;if(!menuSkip)renderer.render(scene,camera);
+  if(!(!playing&&menuCovered()))renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
 {const wrap=$("cpuLv");for(let i=1;i<=5;i++){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",i===cpuLevel);b.textContent="Lv"+i+" "+CPU_LV[i].name;
@@ -2480,7 +2481,7 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
 let pickedCourse="arena";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])pickedCourse=s.co;}catch(e){}
 {const wrap=$("courses");for(const k in COURSES){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",k===pickedCourse);b.textContent=COURSES[k].icon+" "+COURSES[k].name;
-  b.onclick=()=>{pickedCourse=k;try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");s.co=k;localStorage.setItem("fk-prefs",JSON.stringify(s));}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));setTimeout(()=>{loadCourse(k);showCoursePrev();},30);};wrap.appendChild(b);}}
+  b.onclick=()=>{pickedCourse=k;try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");s.co=k;localStorage.setItem("fk-prefs",JSON.stringify(s));}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));showCoursePrev(k);};wrap.appendChild(b);}}
 show("title");loadCourse(pickedCourse);showSpecNote();
 // ---------- step-by-step setup after choosing a play mode ----------
 {const F=id=>$(id).closest(".field");
