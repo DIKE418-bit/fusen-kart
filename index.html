@@ -50,6 +50,18 @@ body{background:var(--night);color:var(--panel);font-family:var(--body);overflow
 .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
   padding:calc(env(safe-area-inset-top,0px) + 16px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));
   background:radial-gradient(circle at 50% 30%,rgba(255,79,123,.2),transparent 60%),rgba(27,22,64,.5);overflow-y:auto;z-index:5}
+#passScr{padding:0;overflow:hidden;background:#3a2a1a}
+#passScr::before{content:"";position:absolute;inset:-20px;background:url(art/pass.jpg) center/cover;filter:blur(14px) brightness(.8)}
+.pBox{position:relative;width:min(200vw,177.7vh);aspect-ratio:1672/941;flex:none;background:url(art/pass.jpg) center/100% 100% no-repeat;container-type:inline-size}
+.pBoard{position:absolute;left:29%;top:31%;width:46%;height:52%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.2cqw;text-align:center}
+.pTitle{font-family:"Mochiy Pop One",var(--display);color:#fff;font-size:4.2cqw;-webkit-text-stroke:.14em #7a4012;paint-order:stroke fill;text-shadow:0 .1em 0 #5a2c08}
+.pSub{color:#fff3dc;font-weight:900;font-size:1.5cqw;max-width:88%;text-shadow:0 1px 2px #5a2c08}
+#passSlot .field{width:100%;margin:0}#passSlot{width:86%}#passSlot label{display:none}
+#passSlot input{width:100%;font-size:max(16px,3cqw);text-align:center;padding:1.2cqw 1.6cqw;border-radius:2cqw;border:.35cqw solid #7a4012;background:#fffaf0;font-family:"Mochiy Pop One",var(--body);color:#5a2c08}
+.pErr{color:#fff;background:#d63c5c;border-radius:999px;padding:.4cqw 1.6cqw;font-weight:900;font-size:1.5cqw}
+.pNav{display:flex;gap:2cqw;width:86%}.pBtn{flex:1;border:0;border-radius:999px;padding:1.3cqw 0;font-family:"Mochiy Pop One",var(--display);font-size:max(14px,2.3cqw);cursor:pointer;touch-action:manipulation}
+.pBtn.next{background:linear-gradient(180deg,#ff7aa8,#ff3f7f);color:#fff;box-shadow:0 .5cqw 0 #b8255a}.pBtn.back{background:#fff3dc;color:#7a4012;box-shadow:0 .5cqw 0 #c8a070}
+.pBtn:active{transform:translateY(.3cqw)}
 #modes{background:#1b1640 url(art/modes.jpg) center/cover no-repeat;flex-direction:column;justify-content:center;gap:2vh}
 #modes::before{content:"";position:absolute;inset:0;background:rgba(20,12,60,.28);pointer-events:none}
 .mHead{position:relative;font-family:"Mochiy Pop One",var(--display);color:#fff;font-size:clamp(1.2rem,5vmin,2rem);-webkit-text-stroke:.12em #ff5c9a;paint-order:stroke fill;text-shadow:0 .1em 0 #c4205a}
@@ -242,6 +254,17 @@ h2{font-family:var(--display);font-size:1.5rem;margin:0;text-align:center;color:
     <button class="mBtn te" type="button" data-mode="test"><b>🧪</b><span>走行テスト<small>アイテムやSPECを自由に試せる</small></span></button>
   </div>
   <button class="mBack" id="mBack" type="button">← タイトルへ</button>
+</section>
+<section class="screen" id="passScr" hidden>
+  <div class="pBox">
+    <div class="pBoard">
+      <div class="pTitle">合言葉を決めよう！</div>
+      <div class="pSub">友だちと同じ合言葉を入れると、同じルームで遊べるで</div>
+      <div id="passSlot"></div>
+      <div class="pErr" id="passErr" hidden>合言葉を入れてください</div>
+      <div class="pNav"><button class="pBtn back" id="passBack" type="button">← もどる</button><button class="pBtn next" id="passNext" type="button">つぎへ →</button></div>
+    </div>
+  </div>
 </section>
 <section class="screen" id="menu" hidden>
   <div class="card">
@@ -507,7 +530,7 @@ function rollItem(e){const odds=ITEM_ODDS[clamp((e&&e.b)||3,1,4)];let tot=0;for(
 const CPU_NAMES=["ポン太","ミルク","ガブ","モモ","コタロウ","ルナ"];
 const DRIFT_COL=["#ffffff","#4fc3ff","#ff9a2e","#c45cff"];
 
-const scr={title:$("title"),modes:$("modes"),menu:$("menu"),lobby:$("lobby"),result:$("result")};
+const scr={title:$("title"),modes:$("modes"),passScr:$("passScr"),menu:$("menu"),lobby:$("lobby"),result:$("result")};
 function show(name){for(const k in scr)scr[k].hidden=k!==name;$("hud").hidden=!!name;$("mini").hidden=!!name;}
 
 // ---------- prefs ----------
@@ -2429,9 +2452,10 @@ try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])
 show("title");loadCourse(pickedCourse);showSpecNote();
 // ---------- step-by-step setup after choosing a play mode ----------
 {const F=id=>$(id).closest(".field");
-  const PARTS={chara:[F("nameIn"),F("chars"),F("colors")],course:[F("courses")],cpu:[F("cpuLv"),F("cpuNum"),F("soloTm")],test:[F("testCpu"),F("testLv")],pass:[F("passIn")]};
+  const PARTS={chara:[F("nameIn"),F("chars"),F("colors")],course:[F("courses")],cpu:[F("cpuLv"),F("cpuNum"),F("soloTm")],test:[F("testCpu"),F("testLv")]};
+  $("passSlot").appendChild(F("passIn"));
   const TITLE={chara:"キャラクター",course:"コース",cpu:"CPUの設定",test:"テストの設定",pass:"合言葉"};
-  const FLOW={online:["chara","course","pass"],solo:["chara","course","cpu"],test:["chara","course","test"]};
+  const FLOW={online:["chara","course"],solo:["chara","course","cpu"],test:["chara","course","test"]};
   const ACT={online:$("joinBtn"),solo:$("soloBtn"),test:$("cBtn")};
   ACT.solo.textContent="スタート！";ACT.test.textContent="走行テスト開始！";ACT.online.textContent="ルームに入る！";
   for(const k in ACT)$("wizNav").appendChild(ACT[k]);$("wizNav").before($("menuErr"));
@@ -2440,10 +2464,13 @@ show("title");loadCourse(pickedCourse);showSpecNote();
     $("wizTitle").textContent=TITLE[cur];$("wizDots").innerHTML=fl.map((_,i)=>`<i class="${i===ws?"on":""}"></i>`).join("");
     const last=ws===fl.length-1;$("wizNext").hidden=last;for(const k in ACT)ACT[k].hidden=!(last&&k===wm);$("menuErr").hidden=true;$("ctlHelp").hidden=!(last&&wm==="test");
     if(cur==="chara")showSpecNote();$("menu").scrollTop=0;};
-  document.querySelectorAll("#modes .mBtn").forEach(b=>b.addEventListener("click",()=>{wm=b.dataset.mode;ws=0;render();show("menu");}));
+  document.querySelectorAll("#modes .mBtn").forEach(b=>b.addEventListener("click",()=>{wm=b.dataset.mode;ws=0;render();if(wm==="online"){$("passErr").hidden=true;show("passScr");}else show("menu");}));
+  $("passBack").onclick=()=>show("modes");
+  const passGo=()=>{if(!$("passIn").value.trim()){$("passErr").hidden=false;$("passIn").focus();return;}$("passErr").hidden=true;savePrefs();ws=0;render();show("menu");};
+  $("passNext").onclick=passGo;$("passIn").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();passGo();}});
   $("mBack").onclick=()=>show("title");
   $("wizNext").onclick=()=>{if(wm==="online"&&FLOW[wm][ws]==="chara"){}ws=Math.min(FLOW[wm].length-1,ws+1);render();};
-  $("wizBack").onclick=()=>{if(ws>0){ws--;render();}else show("modes");};
+  $("wizBack").onclick=()=>{if(ws>0){ws--;render();}else show(wm==="online"?"passScr":"modes");};
   render();}
 {const go=e=>{if(e)e.preventDefault();SND.init();sfx("go");goFull();show("modes");};$("tStart").addEventListener("click",e=>{e.stopPropagation();go(e);});$("title").addEventListener("click",go);}
 {let lastTouch=0;
