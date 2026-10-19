@@ -65,6 +65,11 @@ body{background:var(--night);color:var(--panel);font-family:var(--body);overflow
 #menu{background:#2a3a80 url(art/cpu.jpg) center/cover no-repeat}
 #menu .card{background:rgba(255,250,240,.92);box-shadow:0 0 0 4px rgba(255,255,255,.8),0 6px 0 rgba(47,70,160,.6),0 16px 36px rgba(0,0,0,.35)}
 #menu .wizTop h2{color:#fff;-webkit-text-stroke:.14em #2f6fe0;paint-order:stroke fill;text-shadow:0 .08em 0 #1d4ab0}
+#menu.mapBg{background:#3a2a1a url(art/map.jpg) center/cover no-repeat}
+#coursePrev{position:relative;border-radius:16px;overflow:hidden;margin-bottom:8px;background:#1b1640;box-shadow:0 0 0 3px #fff,0 4px 0 rgba(0,0,0,.2)}
+#coursePrev img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+#coursePrev b{position:absolute;left:10px;bottom:8px;font-family:"Mochiy Pop One",var(--display);font-size:1.1rem;color:#fff;-webkit-text-stroke:.14em #2f6fe0;paint-order:stroke fill;text-shadow:0 .08em 0 #1d4ab0}
+#coursePrev.pop img{animation:cpPop .35s cubic-bezier(.3,1.6,.5,1)}
 #charPrev{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#ffe9f2,#e6f0ff);border-radius:16px;padding:8px;margin-bottom:8px}
 #charPrev img{width:46%;max-width:200px;aspect-ratio:1.6;object-fit:cover;border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.15)}
 #charPrev b{display:block;font-family:"Mochiy Pop One",var(--display);font-size:1.15rem;color:var(--pop)}#charPrev span{display:block;font-weight:900;font-size:.85rem;color:#5a4a8a;margin-top:4px}
@@ -1878,6 +1883,13 @@ function mergeStatic(){const groups=new Map();
     const mg=new THREE.BufferGeometry();mg.setAttribute("position",new THREE.BufferAttribute(pos,3));mg.setAttribute("normal",new THREE.BufferAttribute(nor,3));mg.setAttribute("uv",new THREE.BufferAttribute(uv,2));
     const mm=new THREE.Mesh(mg,list[0].material);mm.castShadow=list.some(m=>m.castShadow);mm.receiveShadow=list.some(m=>m.receiveShadow);
     for(const m of list){CG.remove(m);if(!(typeof keepGeo!=="undefined"&&keepGeo.has(m.geometry)))m.geometry.dispose();}CG.add(mm);}}
+// bird's-eye picture of the loaded course for the course-select preview
+const courseShots={};
+function courseShot(){const cv=renderer.domElement,pr=renderer.getPixelRatio();renderer.setPixelRatio(1);renderer.setSize(960,540,false);const cam=new THREE.PerspectiveCamera(36,16/9,10,40000),S=Math.max(W,H);
+  cam.position.set(W/2,S*.95,H/2+S*.78);cam.lookAt(W/2,0,H/2+S*.03);const f=scene.fog;scene.fog=null;renderer.render(scene,cam);const url=cv.toDataURL("image/jpeg",.82);scene.fog=f;renderer.setPixelRatio(pr);resize();return url;}
+function showCoursePrev(){const box=$("coursePrev");if(!box||!loadedCourse)return;const id=courseId0();if(!courseShots[id])courseShots[id]=courseShot();
+  const im=box.querySelector("img");im.src=courseShots[id];$("cpvName").textContent=loadedCourse.icon+" "+loadedCourse.name;box.classList.remove("pop");void box.offsetWidth;box.classList.add("pop");}
+function courseId0(){for(const k in COURSES)if(COURSES[k]===loadedCourse)return k;return "arena";}
 function loadCourse(id){
   const c=COURSES[id]||COURSES.arena;if(loadedCourse===c)return;
   scene.remove(CG);CG.traverse(n=>{if(n.geometry)n.geometry.dispose();if(n.material){(Array.isArray(n.material)?n.material:[n.material]).forEach(m=>{if(!COURSE_KEEP.has(m)&&!(typeof SHARED!=="undefined"&&SHARED.has(m))){if(m.map&&m.map!==dashTex&&m.map!==boxTex)m.map.dispose();m.dispose();}});}});
@@ -2468,12 +2480,12 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
 let pickedCourse="arena";
 try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");if(COURSES[s.co])pickedCourse=s.co;}catch(e){}
 {const wrap=$("courses");for(const k in COURSES){const b=document.createElement("button");b.type="button";b.setAttribute("aria-pressed",k===pickedCourse);b.textContent=COURSES[k].icon+" "+COURSES[k].name;
-  b.onclick=()=>{pickedCourse=k;try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");s.co=k;localStorage.setItem("fk-prefs",JSON.stringify(s));}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));setTimeout(()=>loadCourse(k),30);};wrap.appendChild(b);}}
+  b.onclick=()=>{pickedCourse=k;try{const s=JSON.parse(localStorage.getItem("fk-prefs")||"{}");s.co=k;localStorage.setItem("fk-prefs",JSON.stringify(s));}catch(e){}[...wrap.children].forEach(x=>x.setAttribute("aria-pressed",x===b));setTimeout(()=>{loadCourse(k);showCoursePrev();},30);};wrap.appendChild(b);}}
 show("title");loadCourse(pickedCourse);showSpecNote();
 // ---------- step-by-step setup after choosing a play mode ----------
 {const F=id=>$(id).closest(".field");
   const PARTS={chara:[F("nameIn"),F("chars"),F("colors")],course:[F("courses")]};
-  F("chars").after(F("colors"));F("chars").insertBefore(Object.assign(document.createElement("div"),{id:"charPrev",innerHTML:'<img alt=""><div><b id="cpName"></b><span id="cpSpec"></span></div>'}),$("chars"));
+  F("chars").after(F("colors"));F("courses").insertBefore(Object.assign(document.createElement("div"),{id:"coursePrev",innerHTML:'<img alt=""><b id="cpvName"></b>'}),$("courses"));F("chars").insertBefore(Object.assign(document.createElement("div"),{id:"charPrev",innerHTML:'<img alt=""><div><b id="cpName"></b><span id="cpSpec"></span></div>'}),$("chars"));
   // CPU + balloon colour screen: one set of fields per mode
   const CPU={online:[F("oCpuNum"),F("oCpuLv"),F("oTeam")],solo:[F("cpuNum"),F("cpuLv"),F("soloTm")],test:[F("testCpu"),F("testLv")]};
   const relabel={oCpuNum:"CPUの人数",oCpuLv:"CPUの強さ",oTeam:"バトル形式",cpuNum:"CPUの人数",cpuLv:"CPUの強さ",soloTm:"チームバトル",testCpu:"CPUの人数",testLv:"CPUの強さ"};
@@ -2490,7 +2502,7 @@ show("title");loadCourse(pickedCourse);showSpecNote();
   const render=()=>{const fl=FLOW[wm],cur=fl[ws];for(const k in PARTS)for(const el of PARTS[k])el.hidden=k!==cur;
     $("wizTitle").textContent=TITLE[cur];$("wizDots").innerHTML=fl.map((_,i)=>`<i class="${i===ws?"on":""}"></i>`).join("");
     const last=ws===fl.length-1;$("wizNext").hidden=last;for(const k in ACT)ACT[k].hidden=!(last&&k===wm);$("menuErr").hidden=true;$("ctlHelp").hidden=!(last&&wm==="test");
-    if(cur==="chara")showSpecNote();$("menu").scrollTop=0;};
+    if(cur==="chara")showSpecNote();if(cur==="course")setTimeout(showCoursePrev,30);$("menu").classList.toggle("mapBg",cur==="course");$("menu").scrollTop=0;};
   document.querySelectorAll("#modes .mBtn").forEach(b=>b.addEventListener("click",()=>{wm=b.dataset.mode;ws=0;render();if(wm==="online"){$("passErr").hidden=true;show("passScr");}else showCpu();}));
   $("cpuBack").onclick=()=>show(wm==="online"?"passScr":"modes");$("cpuNext").onclick=()=>{ws=0;render();show("menu");};
   $("passBack").onclick=()=>show("modes");
