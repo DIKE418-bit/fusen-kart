@@ -765,6 +765,10 @@ function knockStep(e,dt){const ox=e.x,oy=e.y;e.x+=e.kvx*dt;e.y+=e.kvy*dt;
   if(SOLID&&SOLID(e.x,e.y)){if(!SOLID(e.x,oy)){e.kvy=-e.kvy;e.y=oy;}else if(!SOLID(ox,e.y)){e.kvx=-e.kvx;e.x=ox;}else{e.kvx=-e.kvx;e.kvy=-e.kvy;e.x=ox;e.y=oy;}}
   for(const q of PILLARS){const dx=e.x-q.x,dy=e.y-q.y,d=Math.hypot(dx,dy)||1;if(d<q.r+R){const nx=dx/d,ny=dy/d,dot=e.kvx*nx+e.kvy*ny;if(dot<0){e.kvx-=2*dot*nx;e.kvy-=2*dot*ny;}e.x=q.x+nx*(q.r+R);e.y=q.y+ny*(q.r+R);}}
   for(const w of WALLS){const n=pushOutRect(e,R,w);if(n){const dot=e.kvx*n[0]+e.kvy*n[1];if(dot<0){e.kvx-=2*dot*n[0];e.kvy-=2*dot*n[1];}}}}
+// slide along solid terrain instead of stopping: find the surface normal and push the kart out along it
+function solidPush(e,px,py){let nx=0,ny=0;for(let k=0;k<12;k++){const a=k/12*Math.PI*2,cx=Math.cos(a),cy=Math.sin(a);if(SOLID(e.x+cx*24,e.y+cy*24)){nx-=cx;ny-=cy;}}
+  const l=Math.hypot(nx,ny);if(l<.01){e.x=px;e.y=py;return;}nx/=l;ny/=l;
+  for(let i=0;i<20&&SOLID(e.x,e.y);i++){e.x+=nx*3;e.y+=ny*3;}if(SOLID(e.x,e.y)){e.x=px;e.y=py;}}
 function drive(e,steer,dHeld,dt,t,go){
   if(e.star&&t>=e.star&&e.starStock&&e.starStock.length)endStar(e);
   if(!e.item&&e.stock&&e.stock.length&&!(e.star&&t<e.star))e.item=e.stock.shift();
@@ -785,7 +789,7 @@ function drive(e,steer,dHeld,dt,t,go){
   } else e.v*=Math.pow(.1,dt);
   e.steer=steer;
   const px=e.x,py=e.y;if(t<(e.knockUntil||0))knockMove(e,dt);else{let ma=e.a;if(loadedCourse&&loadedCourse.ice){if(e.mvA===undefined)e.mvA=e.a;e.mvA+=angDiff(e.a,e.mvA)*Math.min(1,dt*3.2);ma=e.mvA;}else e.mvA=e.a;e.x+=Math.cos(ma)*e.v*dt;e.y+=Math.sin(ma)*e.v*dt;}
-  let hitSolid=false;if(SOLID&&!(loadedCourse&&loadedCourse.ghostSolid&&t<(e.ghostUntil||0))&&SOLID(e.x,e.y)){hitSolid=true;if(!SOLID(e.x,py))e.y=py;else if(!SOLID(px,e.y))e.x=px;else{e.x=px;e.y=py;}}
+  let hitSolid=false;if(SOLID&&!(loadedCourse&&loadedCourse.ghostSolid&&t<(e.ghostUntil||0))&&SOLID(e.x,e.y)){hitSolid=true;solidPush(e,px,py);}
   // obstacles: slow down, but never below 65% of max speed
   const floorV=OBSTACLE_FLOOR*max;const slow=()=>{if(e===me&&e.v>floorV*1.05)sfx("bump",1,.35);if(e.v>floorV)e.v=Math.max(floorV,e.v*.8);};
   if(e.x<R){e.x=R;slow()}if(e.x>W-R){e.x=W-R;slow()}if(e.y<R){e.y=R;slow()}if(e.y>H-R){e.y=H-R;slow()}
