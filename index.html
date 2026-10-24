@@ -910,10 +910,12 @@ try{const g=k=>localStorage.getItem(k);let v=g("fk-ocn");if(v!==null&&+v>=0&&+v<
 function botThink(b,t,dt){
   if(b.b<=0)return[0,false];const L=CPU_LV[b.lv||3];
   let tgt=null,td=1e9;for(const o of allEnts()){if(o===b||o.b<=0||ally(b,o)||(o.clone&&o.owner===(b.clone?b.owner:b.id))||(b.clone&&o.id===b.owner))continue;const d=Math.hypot(o.x-b.x,o.y-b.y);if(d<td){td=d;tgt=o;}}
+  // musou: only about 1 CPU in 20 attacks; the rest just cruise around
+  const idle=musou&&!b.clone&&!b.atk;if(idle)tgt=null;
   let gx=W/2,gy=H/2;
   let cbox=null;if(b.clone){const ow=[me,...bots].find(o=>o&&o.id===b.owner);if(ow&&ow.b>0&&itemCount(ow,t)<MAX_STOCK&&!pouchBlocked(ow,t)){let bd=1400;for(const bx of BOXES)if(bx.on){const d=Math.hypot(bx.x-b.x,bx.y-b.y);if(d<bd){bd=d;cbox=bx;}}}}
   if(cbox){gx=cbox.x;gy=cbox.y;}
-  else if(b.clone){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){for(let k=0;k<20;k++){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];if(!solidAt(b.wp[0],b.wp[1]))break;}b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
+  else if(b.clone||idle){if(!b.wp||t>b.wpT||Math.hypot(b.wp[0]-b.x,b.wp[1]-b.y)<140){for(let k=0;k<20;k++){b.wp=[200+Math.random()*(W-400),200+Math.random()*(H-400)];if(!solidAt(b.wp[0],b.wp[1]))break;}b.wpT=t+2500+Math.random()*2500;}gx=b.wp[0];gy=b.wp[1];}
   else if(!b.item){let bd=1e9;for(const bx of BOXES)if(bx.on){const d=Math.hypot(bx.x-b.x,bx.y-b.y);if(d<bd){bd=d;gx=bx.x;gy=bx.y;}}}
   else if(tgt){const lead=td/1560*L.lead;gx=tgt.x+Math.cos(tgt.a)*tgt.v*lead;gy=tgt.y+Math.sin(tgt.a)*tgt.v*lead;}
   let dx=gx-b.x,dy=gy-b.y;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
@@ -1134,7 +1136,7 @@ function beginRound(r,co,host){lastCdBeep=-1;if(mode!=="solo")musou=false;
       teamOn=(onlineTeam===2&&!bots.length)?1:onlineTeam;teamMap=buildTeams(ids,bots.map(b=>b.id),teamOn);}
     else{bots=[];teamOn=0;teamMap=new Map();}}
   else{spawn(me,0);bots.forEach((b,i)=>spawn(b,i+1));teamOn=mode==="solo"?(musou?2:soloTeam):0;teamMap=buildTeams([me.id],bots.map(b=>b.id),teamOn);
-    if(musou){me.b=me.prevB=MUSOU_HP;musouSpawn();}}
+    if(musou){me.b=me.prevB=MUSOU_HP;musouSpawn();musouAttackers();}}
   applyTeamColors();if(musou)flash("⚔️ 無双プレイ！CPU "+bots.length+"体をなぎ倒せ！",2400);else if(teamOn&&teamOf(me)>=0)flash("あなたは "+TEAM_NAME[teamOf(me)]+"！",2200);
   camInit=false;pushPresence();
 }
@@ -1142,6 +1144,9 @@ const MUSOU_HP=100;
 function startMusou(){savePrefs();mode="solo";musou=true;leaveOnline();
   me=makeEnt("me",myName(),myColor,true,false);me.skin=myChar;bots=makeBots(musouNum,musouLv,"cpu");round=1;beginRound(1,pickedCourse);}
 // scatter many CPUs over free ground, away from the player
+// keep roughly one attacker per 20 surviving CPUs
+function musouAttackers(){const alive=bots.filter(b=>b.b>0),need=Math.max(1,Math.ceil(alive.length/20));let have=alive.filter(b=>b.atk).length;
+  const pool=alive.filter(b=>!b.atk);while(have<need&&pool.length){pool.splice(Math.floor(Math.random()*pool.length),1)[0].atk=true;have++;}}
 function musouSpawn(){for(const b of bots){for(let k=0;k<60;k++){const x=150+Math.random()*(W-300),y=150+Math.random()*(H-300);
     if(solidAt(x,y)||PILLARS.some(q=>Math.hypot(x-q.x,y-q.y)<q.r+R+10)||WALLS.some(w=>x>w[0]-R&&x<w[2]+R&&y>w[1]-R&&y<w[3]+R)||Math.hypot(x-me.x,y-me.y)<900)continue;
     b.x=b.rx=x;b.y=b.ry=y;b.a=b.ra=Math.atan2(me.y-y,me.x-x);break;}}}
@@ -2442,6 +2447,7 @@ function frame(){
     if(phase==="cd"&&t-phaseAt>=CD_MS){phase="play";phaseAt=t;endAt=t+ROUND_MS;}
     const go=phase==="play";
     drive(me,go?readSteer(dt):0,go&&driftHeld(),dt,t,go);
+    if(musou&&go&&(!window.__maT||t>window.__maT)){window.__maT=t+1000;musouAttackers();}
     for(const b of bots){const [s,d]=go?botThink(b,t,dt):[0,false];drive(b,s,d,dt,t,go);}
     stepClones(t,dt,go);
     for(const b of bots)if(t<b.boost)b.inkUntil=0;
