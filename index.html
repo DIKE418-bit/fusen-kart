@@ -710,7 +710,7 @@ function specActiveUntil(e,t){switch(e.skin){case"goat":return e.munchUntil||0;c
 function canSpec(e,t){const S=SPECS[e.skin];if(!S||e.clone||e.b<=0||phase!=="play")return false;
   if(e.bearRage>t)return t>=(e.bearCd||0);
   if(e.skin==="lion"&&t<(e.roarUntil||0))return t>=(e.roarCd||0);
-  if(mode==="test"&&e.spUsed&&t>(e.spDoneAt||0)&&specActiveUntil(e,t)<t){e.spUsed=false;e.bearArm=0;}
+  if((mode==="test"||(musou&&e===me))&&e.spUsed&&t>(e.spDoneAt||0)&&specActiveUntil(e,t)<t){e.spUsed=false;e.bearArm=0;}
   if(e.spUsed)return false;
   if(e.skin==="bear"&&e.b<2)return false;
   if(e.skin==="goat"&&e.b<2)return false;
